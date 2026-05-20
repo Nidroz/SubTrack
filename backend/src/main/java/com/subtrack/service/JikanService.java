@@ -11,12 +11,13 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
+@RequiredArgsConstructor
 public class JikanService {
   private static final String BASE_URL = "https://api.jikan.moe/v4";
-  private final MediaCacheRepository cacheRepository;
+  private final MediaCacheRepository mediaCacheRepository;
   private final RestTemplate restTemplate;
-  private final ObjectMapper objectMapper;
 
-  // TODO: Add caching logic to reduce API calls
+  public void searchAnime() {
 
+  }
 }

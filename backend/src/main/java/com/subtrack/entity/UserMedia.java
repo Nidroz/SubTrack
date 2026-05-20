@@ -30,6 +30,10 @@ public class UserMedia {
   @Enumerated(EnumType.STRING)
   private MediaType mediaType;
 
+  @Column(nullable = false)
+  @Enumerated(EnumType.STRING)
+  private WatchStatus status;
+
   private int progress = 0;
 
   private int score;

@@ -1,17 +1,46 @@
 package com.subtrack.entity;
 
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "user_media", uniqueConstraints = {
+    @UniqueConstraint(columnNames = {"user_id", "media_type", "media_id"})
+})
+@Getter
+@Setter
+@NoArgsConstructor
 public class UserMedia {
-  public enum MediaType {
-    ANIME, MANGA
-  }
-
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
-  private User user;
-  private MediaType mediaType;
-  private Long mediaId; // ID from Jikan API
-  private String title;
-  private String status; // e.g., "Watching", "Completed", "Plan to Watch"
-  private Integer score;
 
-  // Getters and setters omitted for brevity
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "user_id", nullable = false)
+  private User user;
+
+  @Column(name = "media_id", nullable = false)
+  private Long mediaId;
+
+  @Column(name = "media_type", nullable = false)
+  @Enumerated(EnumType.STRING)
+  private MediaType mediaType;
+
+  private int progress = 0;
+
+  private int score;
+
+  @Column(columnDefinition = "TEXT")
+  private String notes;
+
+  private LocalDateTime updatedAt = LocalDateTime.now();
+
+  @PreUpdate
+  public void onUpdate() {
+    this.updatedAt = LocalDateTime.now();
+  }
 }

@@ -2,23 +2,24 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 
-export default function Login() {
+export default function Register() {
     const [username, setUsername] = useState('')
+    const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
-    const { login } = useAuthStore()
+    const { register } = useAuthStore()
     const navigate = useNavigate()
 
     const handleSubmit = async () => {
-        if (!username || !password) return
+        if (!username || !email || !password) return
         setLoading(true)
         setError('')
         try {
-            await login(username, password)
+            await register(username, email, password)
             navigate('/')
-        } catch {
-            setError('Invalid username or password')
+        } catch (e: any) {
+            setError(e?.response?.data?.message ?? 'Registration failed')
         } finally {
             setLoading(false)
         }
@@ -34,8 +35,8 @@ export default function Login() {
                 </div>
 
                 <div>
-                    <h1 className="text-2xl font-black tracking-tight text-zinc-100">Welcome back</h1>
-                    <p className="text-sm text-zinc-500 mt-1">Sign in to your account</p>
+                    <h1 className="text-2xl font-black tracking-tight text-zinc-100">Create account</h1>
+                    <p className="text-sm text-zinc-500 mt-1">Start tracking your anime & manga</p>
                 </div>
 
                 <div className="flex flex-col gap-4">
@@ -46,7 +47,17 @@ export default function Login() {
                             placeholder="your username"
                             value={username}
                             onChange={e => setUsername(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                            className="bg-zinc-950 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-white/20 transition-colors"
+                        />
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-medium text-zinc-400">Email</label>
+                        <input
+                            type="email"
+                            placeholder="you@example.com"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
                             className="bg-zinc-950 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-white/20 transition-colors"
                         />
                     </div>
@@ -55,7 +66,7 @@ export default function Login() {
                         <label className="text-xs font-medium text-zinc-400">Password</label>
                         <input
                             type="password"
-                            placeholder="••••••••"
+                            placeholder="min 6 characters"
                             value={password}
                             onChange={e => setPassword(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleSubmit()}
@@ -70,14 +81,14 @@ export default function Login() {
                         disabled={loading}
                         className="bg-rose-500 hover:bg-rose-400 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-lg transition-colors mt-1"
                     >
-                        {loading ? 'Signing in...' : 'Sign in'}
+                        {loading ? 'Creating account...' : 'Create account'}
                     </button>
                 </div>
 
                 <p className="text-xs text-zinc-500 text-center">
-                    No account?{' '}
-                    <Link to="/register" className="text-rose-400 font-medium hover:text-rose-300">
-                        Create one
+                    Already have an account?{' '}
+                    <Link to="/login" className="text-rose-400 font-medium hover:text-rose-300">
+                        Sign in
                     </Link>
                 </p>
             </div>

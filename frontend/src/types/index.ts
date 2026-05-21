@@ -1,6 +1,5 @@
 export type MediaType = 'ANIME' | 'MANGA'
 
-// matches Spring Boot WatchStatus enum values
 export type WatchStatus = 'WATCHING' | 'COMPLETED' | 'PLAN_TO_WATCH' | 'DROPPED' | 'ON_HOLD'
 
 export interface MediaResult {
@@ -24,7 +23,6 @@ export interface ListEntry {
     progress: number
     score?: number
     notes?: string
-    // joined from media_cache
     title?: string
     imageUrl?: string
     episodes?: number

@@ -1,29 +1,60 @@
 import axios from 'axios'
 
 const api = axios.create({
-    baseURL: 'http://localhost:8000/api',
-    withCredentials: true,
+    baseURL: 'http://localhost:8080/api',
+    withCredentials: false,
 })
 
-export const searchAnime = (q: string, page = 1) =>
-    api.get('/media/search/anime', { params: { q, page } }).then(r => r.data)
+// attach jwt token to every request if present
+api.interceptors.request.use(config => {
+    const token = localStorage.getItem('token')
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+})
 
-export const searchManga = (q: string, page = 1) =>
-    api.get('/media/search/manga', { params: { q, page } }).then(r => r.data)
+// redirect to login on 401
+api.interceptors.response.use(
+    res => res,
+    err => {
+        if (err.response?.status === 401) {
+            localStorage.removeItem('token')
+            window.location.href = '/login'
+        }
+        return Promise.reject(err)
+    }
+)
 
-export const getAnime = (id: number) =>
-    api.get(`/media/anime/${id}`).then(r => r.data)
+// ── auth ──────────────────────────────────────────────────────────────────
+export const login = (username: string, password: string) =>
+    api.post('/auth/login', { username, password }).then(r => r.data)
 
-export const getList = (params?: { media_type?: string; status?: string }) =>
-    api.get('/lists/', { params }).then(r => r.data)
+export const register = (username: string, email: string, password: string) =>
+    api.post('/auth/register', { username, email, password }).then(r => r.data)
+
+// ── media search ──────────────────────────────────────────────────────────
+export const searchMedia = (type: 'ANIME' | 'MANGA', q: string, page = 1) =>
+    api.get('/media/search', { params: { type, q, page } }).then(r => r.data)
+
+export const getMediaById = (type: 'ANIME' | 'MANGA', id: number) =>
+    api.get(`/media/${type}/${id}`).then(r => r.data)
+
+export const getEpisodes = (type: 'ANIME' | 'MANGA', id: number) =>
+    api.get(`/media/${type}/${id}/episodes`).then(r => r.data)
+
+// ── user list ─────────────────────────────────────────────────────────────
+export const getList = (params?: { mediaType?: string; status?: string }) =>
+    api.get('/lists', { params }).then(r => r.data)
 
 export const addToList = (entry: {
-    media_id: number
-    media_type: string
+    mediaId: number
+    mediaType: 'ANIME' | 'MANGA'
     status: string
     progress?: number
     score?: number
-}) => api.post('/lists/', entry).then(r => r.data)
+    notes?: string
+}) => api.post('/lists', entry).then(r => r.data)
 
 export const updateEntry = (id: number, entry: object) =>
     api.patch(`/lists/${id}`, entry).then(r => r.data)

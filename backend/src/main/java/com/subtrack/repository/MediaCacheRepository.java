@@ -9,5 +9,5 @@ import java.util.Optional;
 
 @Repository
 public interface MediaCacheRepository extends JpaRepository<MediaCache, Long> {
-  Optional<MediaCache> findByMailAndMediaType(Long malId, MediaType mediaType);
+  Optional<MediaCache> findByMalIdAndMediaType(Long malId, MediaType mediaType);
 }

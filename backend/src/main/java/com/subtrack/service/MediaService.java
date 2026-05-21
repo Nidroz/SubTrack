@@ -28,7 +28,7 @@ public class MediaService {
 
   public JsonNode getById(MediaType mediaType, Long id) {
     // check cache first, skip the api call if we already have metadata
-    Optional<MediaCache> cached = mediaCacheRepository.findByMailAndMediaType(id, mediaType);
+    Optional<MediaCache> cached = mediaCacheRepository.findByMalIdAndMediaType(id, mediaType);
     if (cached.isPresent()) {
       return toJsonNode(cached.get());
     }

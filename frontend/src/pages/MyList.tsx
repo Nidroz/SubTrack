@@ -72,12 +72,12 @@ export default function MyList() {
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium truncate">{e.title ?? `#${e.mediaId}`}</p>
                                 <div className="flex items-center gap-2 mt-1.5">
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[e.status]}`}>
-                    {STATUS_LABELS[e.status]}
-                  </span>
-                                    <span className="text-xs text-zinc-500">
-                    Ep {e.progress}{e.episodes ? ` / ${e.episodes}` : ''}
-                  </span>
+                                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_COLORS[e.status]}`}>
+                                    {STATUS_LABELS[e.status]}
+                                  </span>
+                                  <span className="text-xs text-zinc-500">
+                                    Ep {e.progress}{e.episodes ? ` / ${e.episodes}` : ''}
+                                  </span>
                                 </div>
                             </div>
                             <button

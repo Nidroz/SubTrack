@@ -20,8 +20,12 @@ export const useListStore = create<ListStore>((set) => ({
 
     fetchList: async (params) => {
         set({ loading: true })
-        const data = await getList(params)
-        set({ entries: data, loading: false })
+        try {
+            const data = await getList(params)
+            set({ entries: data, loading: false })
+        } finally {
+            set({ loading: false })
+        }
     },
 
     fetchStats: async () => {

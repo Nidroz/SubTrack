@@ -1,11 +1,10 @@
 package com.subtrack.service;
 
+import com.subtrack.dto.ListEntryResponse;
 import com.subtrack.dto.MediaEntryRequest;
 import com.subtrack.dto.StatsResponse;
-import com.subtrack.entity.MediaType;
-import com.subtrack.entity.User;
-import com.subtrack.entity.UserMedia;
-import com.subtrack.entity.WatchStatus;
+import com.subtrack.entity.*;
+import com.subtrack.repository.MediaCacheRepository;
 import com.subtrack.repository.UserMediaRepository;
 import com.subtrack.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,22 +17,32 @@ import java.util.List;
 public class ListService {
   private final UserMediaRepository userMediaRepository;
   private final UserRepository userRepository;
+  private final MediaCacheRepository mediaCacheRepository;
+  private final MediaService mediaService;
 
-  public List<UserMedia> getList(Long userId, MediaType mediaType, WatchStatus watchStatus) {
+  public List<ListEntryResponse> getList(Long userId, MediaType mediaType, WatchStatus watchStatus) {
+    List<UserMedia> entries;
     if (mediaType != null && watchStatus != null) {
-      return userMediaRepository.findByUserIdAndMediaTypeAndStatusOrderByUpdatedAtDesc(userId, mediaType, watchStatus);
+      entries = userMediaRepository.findByUserIdAndMediaTypeAndStatusOrderByUpdatedAtDesc(userId, mediaType, watchStatus);
+    } else if (mediaType != null) {
+      entries = userMediaRepository.findByUserIdAndMediaTypeOrderByUpdatedAtDesc(userId, mediaType);
+    } else if (watchStatus != null) {
+      entries = userMediaRepository.findByUserIdAndStatusOrderByUpdatedAtDesc(userId, watchStatus);
+    } else {
+      entries = userMediaRepository.findByUserIdOrderByUpdatedAtDesc(userId);
     }
-    if (mediaType != null) {
-      return userMediaRepository.findByUserIdAndMediaTypeOrderByUpdatedAtDesc(userId, mediaType);
-    }
-    if (watchStatus != null) {
-      return userMediaRepository.findByUserIdAndStatusOrderByUpdatedAtDesc(userId, watchStatus);
-    }
-    return userMediaRepository.findByUserIdOrderByUpdatedAtDesc(userId);
+    return entries.stream().map(userMedia -> {
+      MediaCache cache = mediaCacheRepository.findByMalIdAndMediaType(userMedia.getMediaId(), userMedia.getMediaType())
+              .orElse(null);
+      return new ListEntryResponse(userMedia, cache);
+    }).toList();
   }
 
   public UserMedia addEntry(Long userId, MediaEntryRequest mediaEntryRequest) {
     User user = userRepository.getReferenceById(userId);
+    // pre-populate cache so the list can display title/image immediately
+    mediaService.getById(mediaEntryRequest.getMediaType(), mediaEntryRequest.getMediaId());
+
     UserMedia entry = new UserMedia();
     entry.setUser(user);
     entry.setMediaId(mediaEntryRequest.getMediaId());

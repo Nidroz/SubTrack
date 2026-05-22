@@ -23,10 +23,15 @@ export interface ListEntry {
     progress: number
     score?: number
     notes?: string
+    updatedAt: string
+    // from media_cache
     title?: string
+    titleEnglish?: string
     imageUrl?: string
     episodes?: number
-    updatedAt: string
+    chapters?: number
+    apiScore?: number
+    genres?: string
 }
 
 export interface Stats {

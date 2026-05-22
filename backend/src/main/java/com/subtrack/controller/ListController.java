@@ -1,5 +1,6 @@
 package com.subtrack.controller;
 
+import com.subtrack.dto.ListEntryResponse;
 import com.subtrack.dto.MediaEntryRequest;
 import com.subtrack.dto.StatsResponse;
 import com.subtrack.entity.MediaType;
@@ -37,17 +38,11 @@ public class ListController {
   }
 
   @GetMapping
-  public List<UserMedia> getList(
+  public List<ListEntryResponse> getList(
           @AuthenticationPrincipal UserDetails userDetails,
           @RequestParam(required = false) MediaType mediaType,
           @RequestParam(required = false) WatchStatus status) {
-    try {
-      return listService.getList(userId(userDetails), mediaType, status);
-    } catch (Exception e) {
-      System.out.println(">>> ERREUR GETLIST: " + e.getMessage());
-      e.printStackTrace();
-      throw e;
-    }
+    return listService.getList(userId(userDetails), mediaType, status);
   }
 
   @PostMapping

@@ -4,8 +4,9 @@ Anime & manga tracker — full-stack side project.
 
 ## Stack
 
-- **Frontend**: React + TypeScript + Vite + Zustand + CSS Modules
-- **Backend**: FastAPI + SQLite
+- **Frontend**: React + TypeScript + Vite + Tailwind CSS + Zustand
+- **Backend**: Spring Boot 3 + Spring Security + JPA/Hibernate
+- **Database**: H2 (dev) / PostgreSQL (prod)
 - **API**: Jikan v4 (MyAnimeList, no API key needed)
 
 ## Getting started
@@ -14,9 +15,9 @@ Anime & manga tracker — full-stack side project.
 
 ```bash
 cd backend
-pip install -r requirements.txt.txt
-uvicorn app.main:app --reload
-# -> http://localhost:8000
+mvn spring-boot:run
+# -> http://localhost:8080
+# H2 console -> http://localhost:8080/h2-console (JDBC URL: jdbc:h2:file:./subtrack-dev)
 ```
 
 ### Frontend
@@ -28,37 +29,52 @@ npm run dev
 # -> http://localhost:5173
 ```
 
-## Features (MVP)
+The frontend proxies `/api` requests to the backend via Vite — no CORS configuration needed in development.
 
+## Features
+
+- JWT authentication (register / login / logout)
 - Search anime & manga via Jikan API
-- Add to personal list (watching / completed / plan to watch / dropped / on hold)
-- Track episode/chapter progress
-- Dashboard with stats
-- Media cache to reduce API calls
+- Add to personal list with status tracking (watching / completed / plan to watch / dropped / on hold)
+- Detect already-tracked entries in search results — toggle add/remove directly
+- Edit progress inline and change status from the list view
+- Dashboard with stats (total, watching, completed, average score)
+- Media metadata cache to reduce redundant Jikan API calls
+- Strategy pattern for media providers — add new sources (AniList, Kitsu...) without touching existing code
+
+## Architecture
+
+### Backend
+
+```
+com.subtrack/
+├── config/         AppConfig (WebClient bean)
+├── controller/     AuthController, MediaController, ListController
+├── dto/            Request/Response objects (LoginRequest, ListEntryResponse...)
+├── entity/         User, UserMedia, MediaCache, MediaType, WatchStatus
+├── media/          MediaProvider interface, JikanAnimeProvider, JikanMangaProvider, MediaProviderRegistry
+├── repository/     UserRepository, UserMediaRepository, MediaCacheRepository
+├── security/       JwtUtil, JwtFilter, SecurityConfig, UserDetailsServiceImpl
+└── service/        AuthService, MediaService, ListService
+```
+
+### Frontend
+
+```
+src/
+├── components/
+│   ├── auth/       AuthGuard
+│   └── layout/     Layout (sidebar + nav)
+├── pages/          Dashboard, Search, MyList, Login, Register
+├── services/       api.ts (axios + JWT interceptor)
+├── store/          authStore, listStore (Zustand)
+└── types/          TypeScript interfaces
+```
 
 ## Roadmap
 
-- [ ] JWT auth (multi-user)
-- [ ] Release radar (new episode notifications)
+- [ ] Release radar (notifications for new episodes)
 - [ ] Score & notes per entry
-- [ ] Genre stats on dashboard
-- [ ] Dark/light theme toggle
-
-## Structure
-
-```
-subtrack/
-├── backend/
-│   └── app/
-│       ├── main.py         # FastAPI app + CORS
-│       ├── db/             # SQLite init & connection
-│       ├── routers/        # auth, media, lists
-│       └── services/       # Jikan API client
-└── frontend/
-    └── src/
-        ├── pages/          # Dashboard, Search, MyList
-        ├── components/     # Layout
-        ├── store/          # Zustand global state
-        ├── services/       # axios API client
-        └── types/          # TypeScript interfaces
-```
+- [ ] Genre breakdown on dashboard
+- [ ] PWA / mobile support (React Native reuse of store + API logic)
+- [ ] Switch to PostgreSQL for production deployment

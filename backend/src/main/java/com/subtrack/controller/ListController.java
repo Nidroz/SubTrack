@@ -53,7 +53,7 @@ public class ListController {
     return ResponseEntity.ok(listService.addEntry(userId(userDetails), mediaEntryRequest));
   }
 
-  @PutMapping("/{entryId}")
+  @PatchMapping("/{entryId}")
   public ResponseEntity<UserMedia> updateEntry(
           @AuthenticationPrincipal UserDetails userDetails,
           @PathVariable Long entryId,

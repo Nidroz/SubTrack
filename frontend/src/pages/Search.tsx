@@ -5,7 +5,7 @@ import { MediaResult, MediaType } from '../types'
 
 export default function Search() {
     const [query, setQuery] = useState('')
-    const [type, setType] = useState<MediaType>('ANIME')
+    const [mediaType, setMediaType] = useState<MediaType>('ANIME')
     const [results, setResults] = useState<MediaResult[]>([])
     const [loading, setLoading] = useState(false)
     const { addEntry } = useListStore()
@@ -13,13 +13,13 @@ export default function Search() {
     const search = async () => {
         if (!query.trim()) return
         setLoading(true)
-        const data = await searchMedia(type, query)
+        const data = await searchMedia(mediaType, query)
         setResults(data.data ?? [])
         setLoading(false)
     }
 
     const add = async (item: MediaResult) => {
-        await addEntry({ mediaId: item.mal_id, mediaType: type, status: 'PLAN_TO_WATCH', progress: 0 })
+        await addEntry({ mediaId: item.mal_id, mediaType: mediaType, status: 'PLAN_TO_WATCH', progress: 0 })
         alert(`"${item.title}" added!`)
     }
 
@@ -32,22 +32,22 @@ export default function Search() {
 
             <div className="flex gap-3 items-center">
                 <div className="flex bg-zinc-900 border border-white/5 rounded-lg p-1 gap-1">
-                    {(['ANIME', 'MANGA'] as MediaType[]).map(t => (
+                    {(['ANIME', 'MANGA'] as MediaType[]).map(type => (
                         <button
-                            key={t}
-                            onClick={() => setType(t)}
+                            key={type}
+                            onClick={() => setMediaType(type)}
                             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                                type === t ? 'bg-rose-500 text-white' : 'text-zinc-500 hover:text-zinc-200'
+                                mediaType === type ? 'bg-rose-500 text-white' : 'text-zinc-500 hover:text-zinc-200'
                             }`}
                         >
-                            {t.charAt(0) + t.slice(1).toLowerCase()}
+                            {type.charAt(0) + type.slice(1).toLowerCase()}
                         </button>
                     ))}
                 </div>
 
                 <input
                     className="flex-1 bg-zinc-900 border border-white/5 rounded-lg px-4 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-white/20 transition-colors"
-                    placeholder={`Search ${type.toLowerCase()}...`}
+                    placeholder={`Search ${mediaType.toLowerCase()}...`}
                     value={query}
                     onChange={e => setQuery(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && search()}
@@ -83,8 +83,8 @@ export default function Search() {
                                 )}
                                 {(item.episodes || item.chapters) && (
                                     <span className="text-xs text-zinc-500">
-                    {item.episodes ? `${item.episodes} eps` : `${item.chapters} ch`}
-                  </span>
+                                      {item.episodes ? `${item.episodes} eps` : `${item.chapters} ch`}
+                                    </span>
                                 )}
                             </div>
                             <p className="text-xs text-zinc-500 line-clamp-2 flex-1">{item.synopsis}</p>

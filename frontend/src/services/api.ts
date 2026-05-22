@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 const api = axios.create({
-    baseURL: 'http://localhost:8080/api',
+    baseURL: '/api',
     withCredentials: false,
 })
 
@@ -34,8 +34,8 @@ export const register = (username: string, email: string, password: string) =>
     api.post('/auth/register', { username, email, password }).then(r => r.data)
 
 // ── media search ──────────────────────────────────────────────────────────
-export const searchMedia = (type: 'ANIME' | 'MANGA', q: string, page = 1) =>
-    api.get('/media/search', { params: { type, q, page } }).then(r => r.data)
+export const searchMedia = (type: 'ANIME' | 'MANGA', query: string, page = 1) =>
+    api.get('/media/search', { params: { type, query, page } }).then(r => r.data)
 
 export const getMediaById = (type: 'ANIME' | 'MANGA', id: number) =>
     api.get(`/media/${type}/${id}`).then(r => r.data)
@@ -54,7 +54,11 @@ export const addToList = (entry: {
     progress?: number
     score?: number
     notes?: string
-}) => api.post('/lists', entry).then(r => r.data)
+}) => {
+    const { score, ...rest } = entry
+    const body = score ? { ...rest, score } : rest
+    return api.post('/lists', body).then(r => r.data)
+}
 
 export const updateEntry = (id: number, entry: object) =>
     api.patch(`/lists/${id}`, entry).then(r => r.data)

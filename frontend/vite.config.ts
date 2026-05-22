@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     proxy: {
-      '/api': 'http://localhost:8080'  // redirige /api/* vers Spring Boot
+      '/api': 'http://localhost:8080'
     }
   }
 })

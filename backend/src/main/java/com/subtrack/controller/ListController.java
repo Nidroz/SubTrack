@@ -17,7 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Controller
+@RestController
 @RequestMapping("/api/lists")
 @RequiredArgsConstructor
 public class ListController {
@@ -41,7 +41,13 @@ public class ListController {
           @AuthenticationPrincipal UserDetails userDetails,
           @RequestParam(required = false) MediaType mediaType,
           @RequestParam(required = false) WatchStatus status) {
-    return listService.getList(userId(userDetails), mediaType, status);
+    try {
+      return listService.getList(userId(userDetails), mediaType, status);
+    } catch (Exception e) {
+      System.out.println(">>> ERREUR GETLIST: " + e.getMessage());
+      e.printStackTrace();
+      throw e;
+    }
   }
 
   @PostMapping

@@ -25,7 +25,7 @@ public class MediaEntryRequest {
 
   @Min(1)
   @Max(10)
-  private int score;
+  private Integer score;
 
   private String notes;
 }

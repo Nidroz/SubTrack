@@ -4,13 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.subtrack.entity.MediaType;
 import com.subtrack.service.MediaService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
 
-@Controller
+@RestController
 @RequestMapping("/api/media")
 @RequiredArgsConstructor
 public class MediaController {
@@ -18,26 +14,26 @@ public class MediaController {
 
   @GetMapping("/search")
   public JsonNode search(
-          @RequestParam MediaType mediaType,
+          @RequestParam MediaType type,
           @RequestParam String query,
-          @RequestParam int page
+          @RequestParam(defaultValue = "1") int page
   ) {
-    return mediaService.search(mediaType, query, page);
+    return mediaService.search(type, query, page);
   }
 
   @GetMapping("/{mediaType}/{id}")
   public JsonNode getById(
-          @PathVariable MediaType mediaType,
+          @PathVariable MediaType type,
           @PathVariable Long id
   ) {
-    return mediaService.getById(mediaType, id);
+    return mediaService.getById(type, id);
   }
 
   @GetMapping("/{mediaType}/{id}/episodes")
   public JsonNode getEpisodes(
-          @PathVariable MediaType mediaType,
+          @PathVariable MediaType type,
           @PathVariable Long id
   ) {
-    return mediaService.getEpisodesById(mediaType, id);
+    return mediaService.getEpisodesById(type, id);
   }
 }

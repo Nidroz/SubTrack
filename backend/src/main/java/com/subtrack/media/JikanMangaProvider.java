@@ -40,7 +40,7 @@ public class JikanMangaProvider extends AbstractMediaProvider {
 
   @Override
   public JsonNode getEpisodes(Long id) {
-    // manga has no episodes — return empty node
+    // manga has no episodes, return empty node
     return get(BASE + "/manga/" + id + "/chapters");
   }
 }

@@ -1,5 +1,6 @@
 package com.subtrack.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -21,6 +22,7 @@ public class UserMedia {
 
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "user_id", nullable = false)
+  @JsonIgnore
   private User user;
 
   @Column(name = "media_id", nullable = false)
@@ -36,7 +38,7 @@ public class UserMedia {
 
   private int progress = 0;
 
-  private int score;
+  private Integer score;
 
   @Column(columnDefinition = "TEXT")
   private String notes;

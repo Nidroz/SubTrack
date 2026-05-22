@@ -15,11 +15,19 @@ public class UserDetailsServiceImpl implements UserDetailsService {
 
   @Override
   public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+    System.out.println(">>> LOADING USER: " + username);
+
     return userRepository.findByUsername(username)
-            .map(user -> User.withUsername(user.getUsername())
-                    .password(user.getPassword())
-                    .roles("USER") // TODO: implement role-based access control
-                    .build())
-            .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+            .map(user -> {
+              System.out.println(">>> USER FOUND: " + user.getUsername());
+              return User.withUsername(user.getUsername())
+                      .password(user.getPassword())
+                      .roles("USER")
+                      .build();
+            })
+            .orElseThrow(() -> {
+              System.out.println(">>> USER NOT FOUND: " + username);
+              return new UsernameNotFoundException("User not found: " + username);
+            });
   }
 }

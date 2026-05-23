@@ -4,11 +4,11 @@ import { updateEntry } from '../services/api'
 import { MediaType, WatchStatus } from '../types'
 
 const STATUS_LABELS: Record<WatchStatus, string> = {
-    WATCHING: 'Watching',
-    COMPLETED: 'Completed',
+    WATCHING:      'Watching',
+    COMPLETED:     'Completed',
     PLAN_TO_WATCH: 'Plan to watch',
-    DROPPED: 'Dropped',
-    ON_HOLD: 'On hold',
+    DROPPED:       'Dropped',
+    ON_HOLD:       'On hold',
 }
 
 const STATUS_COLORS: Record<WatchStatus, string> = {
@@ -19,83 +19,115 @@ const STATUS_COLORS: Record<WatchStatus, string> = {
     ON_HOLD:       'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
 }
 
+const PAGE_SIZE = 15
+
 export default function MyList() {
-    const { entries, loading, fetchList, removeEntry } = useListStore()
-    const [mediaFilter, setMediaFilter] = useState<MediaType | 'all'>('all')
+    const { entries, loading, totalPages, totalElements, fetchList, removeEntry } = useListStore()
+
+    const [mediaFilter, setMediaFilter]   = useState<MediaType | 'all'>('all')
     const [statusFilter, setStatusFilter] = useState<WatchStatus | 'all'>('all')
-    const [editing, setEditing] = useState<number | null>(null)
+    const [sortBy, setSortBy]             = useState('updatedAt')
+    const [sortDir, setSortDir]           = useState<'asc' | 'desc'>('desc')
+    const [search, setSearch]             = useState('')
+    const [page, setPage]                 = useState(0)
+    const [editing, setEditing]           = useState<number | null>(null)
+
+    const params = {
+        ...(mediaFilter !== 'all' && { mediaType: mediaFilter }),
+        ...(statusFilter !== 'all' && { status: statusFilter }),
+        sortBy,
+        sortDir,
+        page,
+        size: PAGE_SIZE,
+    }
 
     useEffect(() => {
-        fetchList({
-            ...(mediaFilter !== 'all' && { mediaType: mediaFilter }),
-            ...(statusFilter !== 'all' && { status: statusFilter }),
-        })
-    }, [mediaFilter, statusFilter])
+        fetchList(params)
+    }, [mediaFilter, statusFilter, sortBy, sortDir, page])
+
+    // reset to page 0 when filters change
+    useEffect(() => {
+        setPage(0)
+    }, [mediaFilter, statusFilter, sortBy, sortDir])
+
+    const refetch = () => fetchList(params)
 
     const handleStatusChange = async (entryId: number, newStatus: WatchStatus) => {
         const entry = entries.find(e => e.id === entryId)
         if (!entry) return
-        await updateEntry(entryId, {
-            mediaId: entry.mediaId,
-            mediaType: entry.mediaType,
-            status: newStatus,
-            progress: entry.progress,
-            score: entry.score,
-            notes: entry.notes,
-        })
-        fetchList({
-            ...(mediaFilter !== 'all' && { mediaType: mediaFilter }),
-            ...(statusFilter !== 'all' && { status: statusFilter }),
-        })
+        await updateEntry(entryId, { ...entry, status: newStatus })
+        refetch()
     }
 
     const handleProgressChange = async (entryId: number, progress: number) => {
         const entry = entries.find(e => e.id === entryId)
         if (!entry) return
-        await updateEntry(entryId, {
-            mediaId: entry.mediaId,
-            mediaType: entry.mediaType,
-            status: entry.status,
-            progress,
-            score: entry.score,
-            notes: entry.notes,
-        })
-        fetchList({
-            ...(mediaFilter !== 'all' && { mediaType: mediaFilter }),
-            ...(statusFilter !== 'all' && { status: statusFilter }),
-        })
+        await updateEntry(entryId, { ...entry, progress })
+        refetch()
         setEditing(null)
     }
 
-    const statusFilters = ['all', ...Object.keys(STATUS_LABELS)] as (WatchStatus | 'all')[]
+    // client-side search filter (title already loaded in page)
+    const filtered = search.trim()
+        ? entries.filter(e =>
+            (e.titleEnglish ?? e.title ?? '').toLowerCase().includes(search.toLowerCase())
+        )
+        : entries
 
     return (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-6">
             <header>
                 <h1 className="text-3xl font-black tracking-tight">My List</h1>
-                <p className="text-zinc-500 text-sm mt-1">{entries.length} entries</p>
+                <p className="text-zinc-500 text-sm mt-1">{totalElements} entries</p>
             </header>
 
-            {/* media type switch */}
-            <div className="flex bg-zinc-900 border border-white/5 rounded-lg p-1 gap-1 w-fit">
-                {(['all', 'ANIME', 'MANGA'] as const).map(t => (
-                    <button
-                        key={t}
-                        onClick={() => setMediaFilter(t)}
-                        className={`px-5 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                            mediaFilter === t
-                                ? 'bg-rose-500 text-white'
-                                : 'text-zinc-500 hover:text-zinc-200'
-                        }`}
-                    >
-                        {t === 'all' ? 'All' : t.charAt(0) + t.slice(1).toLowerCase()}
-                    </button>
-                ))}
+            {/* controls row */}
+            <div className="flex flex-wrap gap-3 items-center">
+                {/* media type switch */}
+                <div className="flex bg-zinc-900 border border-white/5 rounded-lg p-1 gap-1">
+                    {(['all', 'ANIME', 'MANGA'] as const).map(t => (
+                        <button
+                            key={t}
+                            onClick={() => setMediaFilter(t)}
+                            className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                mediaFilter === t ? 'bg-rose-500 text-white' : 'text-zinc-500 hover:text-zinc-200'
+                            }`}
+                        >
+                            {t === 'all' ? 'All' : t.charAt(0) + t.slice(1).toLowerCase()}
+                        </button>
+                    ))}
+                </div>
+
+                {/* search */}
+                <input
+                    className="flex-1 min-w-40 bg-zinc-900 border border-white/5 rounded-lg px-4 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-white/20 transition-colors"
+                    placeholder="Search by title..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                />
+
+                {/* sort */}
+                <select
+                    value={sortBy}
+                    onChange={e => setSortBy(e.target.value)}
+                    className="bg-zinc-900 border border-white/5 rounded-lg px-3 py-2 text-sm text-zinc-400 outline-none cursor-pointer"
+                >
+                    <option value="updatedAt">Date added</option>
+                    <option value="status">Status</option>
+                </select>
+
+                <button
+                    onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+                    className="bg-zinc-900 border border-white/5 rounded-lg px-3 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+                    title={sortDir === 'desc' ? 'Descending' : 'Ascending'}
+                >
+                    {sortDir === 'desc' ? '↓' : '↑'}
+                </button>
             </div>
 
             {/* status filters */}
             <div className="flex gap-2 flex-wrap">
-                {statusFilters.map(s => (
+                {(['all', ...Object.keys(STATUS_LABELS)] as (WatchStatus | 'all')[]).map(s => (
                     <button
                         key={s}
                         onClick={() => setStatusFilter(s)}
@@ -110,13 +142,14 @@ export default function MyList() {
                 ))}
             </div>
 
+            {/* list */}
             {loading ? (
                 <p className="text-sm text-zinc-500">Loading...</p>
-            ) : entries.length === 0 ? (
+            ) : filtered.length === 0 ? (
                 <p className="text-sm text-zinc-500">Nothing here yet.</p>
             ) : (
                 <div className="flex flex-col gap-3">
-                    {entries.map(e => {
+                    {filtered.map(e => {
                         const total = e.episodes ?? e.chapters
                         const displayTitle = e.titleEnglish ?? e.title ?? `#${e.mediaId}`
                         const isEditingProgress = editing === e.id
@@ -127,11 +160,7 @@ export default function MyList() {
                                 className="flex gap-4 bg-zinc-900 border border-white/5 rounded-xl p-4 hover:border-white/10 transition-colors"
                             >
                                 {e.imageUrl ? (
-                                    <img
-                                        src={e.imageUrl}
-                                        alt={displayTitle}
-                                        className="w-14 h-20 object-cover rounded-lg shrink-0"
-                                    />
+                                    <img src={e.imageUrl} alt={displayTitle} className="w-14 h-20 object-cover rounded-lg shrink-0" />
                                 ) : (
                                     <div className="w-14 h-20 bg-zinc-800 rounded-lg shrink-0 flex items-center justify-center text-zinc-600 text-xs">?</div>
                                 )}
@@ -165,33 +194,55 @@ export default function MyList() {
                                                 {total && <span className="text-xs text-zinc-500">/ {total}</span>}
                                             </div>
                                         ) : (
-                                            <button
-                                                onClick={() => setEditing(e.id)}
-                                                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
-                                            >
+                                            <button onClick={() => setEditing(e.id)} className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
                                                 Ep {e.progress}{total ? ` / ${total}` : ''} ✎
                                             </button>
                                         )}
 
-                                        {e.apiScore && (
-                                            <span className="text-xs text-yellow-400 font-semibold">★ {e.apiScore}</span>
-                                        )}
-
-                                        <span className="text-xs text-zinc-600 uppercase tracking-wider">
-                                          {e.mediaType.toLowerCase()}
-                                        </span>
+                                        {e.apiScore && <span className="text-xs text-yellow-400 font-semibold">★ {e.apiScore}</span>}
+                                        <span className="text-xs text-zinc-600 uppercase tracking-wider">{e.mediaType.toLowerCase()}</span>
                                     </div>
                                 </div>
 
-                                <button
-                                    onClick={() => removeEntry(e.id)}
-                                    className="text-zinc-700 hover:text-rose-400 transition-colors px-1 shrink-0 self-start"
-                                >
-                                    ✕
-                                </button>
+                                <button onClick={() => removeEntry(e.id)} className="text-zinc-700 hover:text-rose-400 transition-colors px-1 shrink-0 self-start">✕</button>
                             </div>
                         )
                     })}
+                </div>
+            )}
+
+            {/* pagination */}
+            {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pt-2">
+                    <button
+                        onClick={() => setPage(p => Math.max(0, p - 1))}
+                        disabled={page === 0}
+                        className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors"
+                    >
+                        ←
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i).map(i => (
+                        <button
+                            key={i}
+                            onClick={() => setPage(i)}
+                            className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                                i === page
+                                    ? 'bg-rose-500 text-white'
+                                    : 'bg-zinc-900 border border-white/5 text-zinc-400 hover:text-zinc-200'
+                            }`}
+                        >
+                            {i + 1}
+                        </button>
+                    ))}
+
+                    <button
+                        onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                        disabled={page >= totalPages - 1}
+                        className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors"
+                    >
+                        →
+                    </button>
                 </div>
             )}
         </div>

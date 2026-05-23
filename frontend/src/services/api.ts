@@ -8,9 +8,7 @@ const api = axios.create({
 // attach jwt token to every request if present
 api.interceptors.request.use(config => {
     const token = localStorage.getItem('token')
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`
-    }
+    if (token) config.headers.Authorization = `Bearer ${token}`
     return config
 })
 
@@ -33,7 +31,7 @@ export const login = (username: string, password: string) =>
 export const register = (username: string, email: string, password: string) =>
     api.post('/auth/register', { username, email, password }).then(r => r.data)
 
-// ── media search ──────────────────────────────────────────────────────────
+// ── media ─────────────────────────────────────────────────────────────────
 export const searchMedia = (type: 'ANIME' | 'MANGA', query: string, page = 1) =>
     api.get('/media/search', { params: { type, query, page } }).then(r => r.data)
 
@@ -44,7 +42,16 @@ export const getEpisodes = (type: 'ANIME' | 'MANGA', id: number) =>
     api.get(`/media/${type}/${id}/episodes`).then(r => r.data)
 
 // ── user list ─────────────────────────────────────────────────────────────
-export const getList = (params?: { mediaType?: string; status?: string }) =>
+export interface ListParams {
+    mediaType?: string
+    status?: string
+    page?: number
+    size?: number
+    sortBy?: string
+    sortDir?: string
+}
+
+export const getList = (params?: ListParams) =>
     api.get('/lists', { params }).then(r => r.data)
 
 export const addToList = (entry: {
@@ -54,11 +61,7 @@ export const addToList = (entry: {
     progress?: number
     score?: number
     notes?: string
-}) => {
-    const { score, ...rest } = entry
-    const body = score ? { ...rest, score } : rest
-    return api.post('/lists', body).then(r => r.data)
-}
+}) => api.post('/lists', entry).then(r => r.data)
 
 export const updateEntry = (id: number, entry: object) =>
     api.patch(`/lists/${id}`, entry).then(r => r.data)

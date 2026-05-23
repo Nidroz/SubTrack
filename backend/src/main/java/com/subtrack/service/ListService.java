@@ -2,15 +2,22 @@ package com.subtrack.service;
 
 import com.subtrack.dto.ListEntryResponse;
 import com.subtrack.dto.MediaEntryRequest;
+import com.subtrack.dto.PagedResponse;
 import com.subtrack.dto.StatsResponse;
-import com.subtrack.entity.*;
+import com.subtrack.entity.MediaCache;
+import com.subtrack.entity.MediaType;
+import com.subtrack.entity.User;
+import com.subtrack.entity.UserMedia;
+import com.subtrack.entity.WatchStatus;
 import com.subtrack.repository.MediaCacheRepository;
 import com.subtrack.repository.UserMediaRepository;
 import com.subtrack.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -20,22 +27,29 @@ public class ListService {
   private final MediaCacheRepository mediaCacheRepository;
   private final MediaService mediaService;
 
-  public List<ListEntryResponse> getList(Long userId, MediaType mediaType, WatchStatus watchStatus) {
-    List<UserMedia> entries;
-    if (mediaType != null && watchStatus != null) {
-      entries = userMediaRepository.findByUserIdAndMediaTypeAndStatusOrderByUpdatedAtDesc(userId, mediaType, watchStatus);
-    } else if (mediaType != null) {
-      entries = userMediaRepository.findByUserIdAndMediaTypeOrderByUpdatedAtDesc(userId, mediaType);
-    } else if (watchStatus != null) {
-      entries = userMediaRepository.findByUserIdAndStatusOrderByUpdatedAtDesc(userId, watchStatus);
-    } else {
-      entries = userMediaRepository.findByUserIdOrderByUpdatedAtDesc(userId);
-    }
-    return entries.stream().map(userMedia -> {
-      MediaCache cache = mediaCacheRepository.findByMalIdAndMediaType(userMedia.getMediaId(), userMedia.getMediaType())
+  public PagedResponse<ListEntryResponse> getList(
+          Long userId, MediaType mediaType, WatchStatus status,
+          int page, int size, String sortBy, String sortDir) {
+
+    Sort.Direction direction = sortDir.equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+
+    // map frontend sort keys to entity fields
+    String sortField = switch (sortBy) {
+      case "status" -> "status";
+      default       -> "updatedAt";
+    };
+
+    Pageable pageable = PageRequest.of(page, size, Sort.by(direction, sortField));
+    Page<UserMedia> raw = userMediaRepository.findByFilters(userId, mediaType, status, pageable);
+
+    Page<ListEntryResponse> enriched = raw.map(um -> {
+      MediaCache cache = mediaCacheRepository
+              .findByMalIdAndMediaType(um.getMediaId(), um.getMediaType())
               .orElse(null);
-      return new ListEntryResponse(userMedia, cache);
-    }).toList();
+      return new ListEntryResponse(um, cache);
+    });
+
+    return new PagedResponse<>(enriched);
   }
 
   public UserMedia addEntry(Long userId, MediaEntryRequest mediaEntryRequest) {

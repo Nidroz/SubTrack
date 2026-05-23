@@ -2,6 +2,7 @@ package com.subtrack.controller;
 
 import com.subtrack.dto.ListEntryResponse;
 import com.subtrack.dto.MediaEntryRequest;
+import com.subtrack.dto.PagedResponse;
 import com.subtrack.dto.StatsResponse;
 import com.subtrack.entity.MediaType;
 import com.subtrack.entity.UserMedia;
@@ -38,11 +39,15 @@ public class ListController {
   }
 
   @GetMapping
-  public List<ListEntryResponse> getList(
+  public PagedResponse<ListEntryResponse> getList(
           @AuthenticationPrincipal UserDetails userDetails,
           @RequestParam(required = false) MediaType mediaType,
-          @RequestParam(required = false) WatchStatus status) {
-    return listService.getList(userId(userDetails), mediaType, status);
+          @RequestParam(required = false) WatchStatus status,
+          @RequestParam(defaultValue = "0")         int page,
+          @RequestParam(defaultValue = "20")        int size,
+          @RequestParam(defaultValue = "updatedAt") String sortBy,
+          @RequestParam(defaultValue = "desc")      String sortDir) {
+    return listService.getList(userId(userDetails), mediaType, status, page, size, sortBy, sortDir);
   }
 
   @PostMapping

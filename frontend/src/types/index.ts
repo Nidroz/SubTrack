@@ -24,7 +24,6 @@ export interface ListEntry {
     score?: number
     notes?: string
     updatedAt: string
-    // from media_cache
     title?: string
     titleEnglish?: string
     imageUrl?: string
@@ -32,6 +31,15 @@ export interface ListEntry {
     chapters?: number
     apiScore?: number
     genres?: string
+}
+
+export interface PagedResult<T> {
+    content: T[]
+    page: number
+    size: number
+    totalElements: number
+    totalPages: number
+    last: boolean
 }
 
 export interface Stats {

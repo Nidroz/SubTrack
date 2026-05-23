@@ -1,29 +1,55 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { searchMedia } from '../services/api'
 import { useListStore } from '../store/listStore'
 import { MediaResult, MediaType } from '../types'
 
 export default function Search() {
-    const [query, setQuery] = useState('')
-    const [type, setType] = useState<MediaType>('ANIME')
-    const [results, setResults] = useState<MediaResult[]>([])
-    const [loading, setLoading] = useState(false)
-    const { entries, addEntry, removeEntry, fetchList } = useListStore()
+    const [searchParams, setSearchParams] = useSearchParams()
     const navigate = useNavigate()
 
+    // restore state from URL params on mount
+    const [type, setType] = useState<MediaType>((searchParams.get('type') as MediaType) ?? 'ANIME')
+    const [query, setQuery] = useState(searchParams.get('q') ?? '')
+    const [results, setResults] = useState<MediaResult[]>([])
+    const [loading, setLoading] = useState(false)
+
+    const { entries, addEntry, removeEntry, fetchList } = useListStore()
+
     useEffect(() => { fetchList() }, [])
+
+    // re-run search if URL has params on mount (e.g. coming back from detail page)
+    useEffect(() => {
+        const q = searchParams.get('q')
+        const t = searchParams.get('type') as MediaType
+        if (q) {
+            setQuery(q)
+            setType(t ?? 'ANIME')
+            runSearch(q, t ?? 'ANIME')
+        }
+    }, [])
 
     const trackedIds = new Set(entries.map(e => e.mediaId))
     const isTracked = (malId: number) => trackedIds.has(malId)
     const getEntryId = (malId: number) => entries.find(e => e.mediaId === malId)?.id
 
-    const search = async () => {
-        if (!query.trim()) return
+    const runSearch = async (q: string, t: MediaType) => {
+        if (!q.trim()) return
         setLoading(true)
-        const data = await searchMedia(type, query)
+        const data = await searchMedia(t, q)
         setResults(data.data ?? [])
         setLoading(false)
+    }
+
+    const search = () => {
+        // persist query in URL so Back restores the search
+        setSearchParams({ q: query, type })
+        runSearch(query, type)
+    }
+
+    const handleTypeChange = (t: MediaType) => {
+        setType(t)
+        if (query) setSearchParams({ q: query, type: t })
     }
 
     const handleAdd = async (item: MediaResult) => {
@@ -51,7 +77,7 @@ export default function Search() {
                     {(['ANIME', 'MANGA'] as MediaType[]).map(t => (
                         <button
                             key={t}
-                            onClick={() => setType(t)}
+                            onClick={() => handleTypeChange(t)}
                             className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${
                                 type === t ? 'bg-rose-500 text-white' : 'text-zinc-500 hover:text-zinc-200'
                             }`}
@@ -86,7 +112,6 @@ export default function Search() {
                             key={item.mal_id}
                             className="bg-zinc-900 border border-white/5 rounded-xl overflow-hidden flex flex-col hover:border-white/10 transition-colors group"
                         >
-                            {/* clickable cover → detail page */}
                             <div
                                 className="cursor-pointer"
                                 onClick={() => navigate(`/${type.toLowerCase()}/${item.mal_id}`)}
@@ -109,7 +134,7 @@ export default function Search() {
                                     {item.score && <span className="text-xs text-yellow-400 font-semibold">★ {item.score}</span>}
                                     {(item.episodes || item.chapters) && (
                                         <span className="text-xs text-zinc-500">
-                                          {item.episodes ? `${item.episodes} eps` : `${item.chapters} ch`}
+                                            {item.episodes ? `${item.episodes} eps` : `${item.chapters} ch`}
                                         </span>
                                     )}
                                 </div>
@@ -118,7 +143,7 @@ export default function Search() {
                                 {tracked ? (
                                     <div className="flex gap-2 mt-auto">
                                         <span className="flex-1 text-center bg-emerald-500/10 text-emerald-400 text-xs font-semibold py-2 rounded-lg">
-                                          ✓ Added
+                                            ✓ Added
                                         </span>
                                         <button
                                             onClick={() => handleRemove(item.mal_id)}

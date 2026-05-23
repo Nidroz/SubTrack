@@ -1,11 +1,12 @@
 import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useListStore } from '../store/listStore'
 import { useAuthStore } from '../store/authStore'
 
 export default function Dashboard() {
     const { stats, entries, fetchStats, fetchList } = useListStore()
     const { username } = useAuthStore()
+    const navigate = useNavigate()
 
     useEffect(() => {
         fetchStats()
@@ -41,7 +42,8 @@ export default function Dashboard() {
                         {entries.map(e => (
                             <div
                                 key={e.id}
-                                className="bg-zinc-900 border border-white/5 rounded-xl overflow-hidden hover:border-white/10 transition-colors group"
+                                onClick={() => navigate(`/${e.mediaType.toLowerCase()}/${e.mediaId}`)}
+                                className="bg-zinc-900 border border-white/5 rounded-xl overflow-hidden hover:border-white/10 transition-colors group cursor-pointer"
                             >
                                 {e.imageUrl && (
                                     <img
@@ -51,7 +53,7 @@ export default function Dashboard() {
                                     />
                                 )}
                                 <div className="p-2.5">
-                                    <p className="text-xs font-medium truncate">{e.title ?? `#${e.mediaId}`}</p>
+                                    <p className="text-xs font-medium truncate">{e.titleEnglish ?? e.title ?? `#${e.mediaId}`}</p>
                                     <p className="text-xs text-zinc-500 mt-0.5">
                                         Ep {e.progress}{e.episodes ? ` / ${e.episodes}` : ''}
                                     </p>

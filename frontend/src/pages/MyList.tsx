@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useListStore } from '../store/listStore'
 import { updateEntry } from '../services/api'
 import { MediaType, WatchStatus } from '../types'
+import { useNavigate } from 'react-router-dom'
 
 const STATUS_LABELS: Record<WatchStatus, string> = {
     WATCHING:      'Watching',
@@ -22,6 +23,7 @@ const STATUS_COLORS: Record<WatchStatus, string> = {
 const PAGE_SIZE = 15
 
 export default function MyList() {
+    const navigate = useNavigate()
     const { entries, loading, totalPages, totalElements, fetchList, removeEntry } = useListStore()
 
     const [mediaFilter, setMediaFilter]   = useState<MediaType | 'all'>('all')
@@ -160,9 +162,17 @@ export default function MyList() {
                                 className="flex gap-4 bg-zinc-900 border border-white/5 rounded-xl p-4 hover:border-white/10 transition-colors"
                             >
                                 {e.imageUrl ? (
-                                    <img src={e.imageUrl} alt={displayTitle} className="w-14 h-20 object-cover rounded-lg shrink-0" />
+                                    <img
+                                        src={e.imageUrl}
+                                        alt={displayTitle}
+                                        className="w-14 h-20 object-cover rounded-lg shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                                        onClick={() => navigate(`/${e.mediaType.toLowerCase()}/${e.mediaId}`)}
+                                    />
                                 ) : (
-                                    <div className="w-14 h-20 bg-zinc-800 rounded-lg shrink-0 flex items-center justify-center text-zinc-600 text-xs">?</div>
+                                    <div
+                                        className="w-14 h-20 bg-zinc-800 rounded-lg shrink-0 flex items-center justify-center text-zinc-600 text-xs cursor-pointer hover:bg-zinc-700 transition-colors"
+                                        onClick={() => navigate(`/${e.mediaType.toLowerCase()}/${e.mediaId}`)}
+                                    >?</div>
                                 )}
 
                                 <div className="flex-1 min-w-0 flex flex-col gap-2">

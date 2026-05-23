@@ -50,7 +50,9 @@ public class MediaService {
     cache.setTitle(data.path("title").asText(null));
     cache.setTitleEnglish(nullableText(data, "title_english"));
     cache.setSynopsis(nullableText(data, "synopsis"));
-    cache.setImageUrl(data.path("images").path("jpg").path("image_url").asText(null));
+    cache.setImageUrl(data.path("images").path("jpg").path("large_image_url").asText(
+            data.path("images").path("jpg").path("image_url").asText(null)
+    ));
     cache.setEpisodes(data.path("episodes").isNull() ? null : data.path("episodes").asInt());
     cache.setChapters(data.path("chapters").isNull() ? null : data.path("chapters").asInt());
     cache.setScore(data.path("score").isNull() ? null : data.path("score").asDouble());
@@ -60,16 +62,24 @@ public class MediaService {
   }
 
   private JsonNode toJsonNode(MediaCache cache) {
-    // minimal reconstruction from cache for uniform response shape
     ObjectMapper mapper = new ObjectMapper();
     ObjectNode node = mapper.createObjectNode();
     node.put("mal_id", cache.getMalId());
     node.put("title", cache.getTitle());
     node.put("title_english", cache.getTitleEnglish());
     node.put("synopsis", cache.getSynopsis());
-    node.put("image_url", cache.getImageUrl());
-    node.put("episodes", cache.getEpisodes());
-    node.put("score", cache.getScore());
+
+    ObjectNode images = mapper.createObjectNode();
+    ObjectNode jpg = mapper.createObjectNode();
+    jpg.put("image_url", cache.getImageUrl());
+    jpg.put("large_image_url", cache.getImageUrl());
+    images.set("jpg", jpg);
+    node.set("images", images);
+
+    if (cache.getEpisodes() != null) node.put("episodes", cache.getEpisodes());
+    else node.putNull("episodes");
+    if (cache.getScore() != null) node.put("score", cache.getScore());
+    else node.putNull("score");
     node.put("status", cache.getStatus());
     node.put("genres", cache.getGenres());
     node.put("cached", true);

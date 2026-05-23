@@ -21,7 +21,7 @@ public class MediaController {
     return mediaService.search(type, query, page);
   }
 
-  @GetMapping("/{mediaType}/{id}")
+  @GetMapping("/{type}/{id}")
   public JsonNode getById(
           @PathVariable MediaType type,
           @PathVariable Long id
@@ -29,7 +29,7 @@ public class MediaController {
     return mediaService.getById(type, id);
   }
 
-  @GetMapping("/{mediaType}/{id}/episodes")
+  @GetMapping("/{type}/{id}/episodes")
   public JsonNode getEpisodes(
           @PathVariable MediaType type,
           @PathVariable Long id

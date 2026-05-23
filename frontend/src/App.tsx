@@ -6,6 +6,7 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Search from './pages/Search'
 import MyList from './pages/MyList'
+import MediaDetail from './pages/MediaDetail'
 
 export default function App() {
     return (
@@ -17,6 +18,7 @@ export default function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/search" element={<Search />} />
                 <Route path="/list" element={<MyList />} />
+                <Route path="/:type/:id" element={<MediaDetail />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

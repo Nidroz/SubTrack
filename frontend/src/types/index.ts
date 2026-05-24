@@ -13,6 +13,7 @@ export interface MediaResult {
     status?: string
     genres?: { name: string }[]
     score?: number
+    studios?: { name: string }[]
 }
 
 export interface ListEntry {

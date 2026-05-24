@@ -23,15 +23,10 @@ export const useListStore = create<ListStore>((set, get) => ({
     totalElements: 0,
 
     fetchList: async (params) => {
-        set({ loading: true })
+        set({ loading: true, entries: [] })
         try {
             const data: PagedResult<ListEntry> = await getList(params)
-            set({
-                entries: data.content,
-                totalPages: data.totalPages,
-                totalElements: data.totalElements,
-                loading: false,
-            })
+            set({ entries: data.content, totalPages: data.totalPages, totalElements: data.totalElements, loading: false })
         } finally {
             set({ loading: false })
         }

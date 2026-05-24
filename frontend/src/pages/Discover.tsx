@@ -35,18 +35,15 @@ export default function Discover() {
             else if (s === 'popular') data = await getTopPopular(t)
             else data = await getMyRecommendations()
 
-            console.log('DATA:', data) // ← ajoute ça
-            console.log('DATA.data:', data?.data)
+            if (!data) { setResults([]); return }  // ← guard
 
-            // recommendations have a different shape: data[].entry
             if (s === 'recommended') {
-                const items = (data.data ?? [])
-                    .map((r: any) => r.entry)
-                    .filter(Boolean)
-                setResults(items)
+                setResults((data.data ?? []).map((r: any) => r.entry).filter(Boolean))
             } else {
                 setResults(data.data ?? [])
             }
+        } catch (e) {
+            setResults([])
         } finally {
             setLoading(false)
         }

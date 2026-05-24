@@ -2,14 +2,18 @@ package com.subtrack.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.subtrack.entity.MediaCache;
 import com.subtrack.entity.MediaType;
+import com.subtrack.entity.UserMedia;
 import com.subtrack.media.MediaProviderRegistry;
 import com.subtrack.repository.MediaCacheRepository;
+import com.subtrack.repository.UserMediaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -21,6 +25,7 @@ import java.util.Optional;
 public class MediaService {
   private final MediaProviderRegistry registry;
   private final MediaCacheRepository mediaCacheRepository;
+  private final UserMediaRepository userMediaRepository;
 
   public JsonNode search(MediaType mediaType, String query, int page) {
     return registry.getProvider(mediaType).search(query, page);
@@ -42,6 +47,47 @@ public class MediaService {
   public JsonNode getEpisodesById(MediaType mediaType, Long id) {
     return registry.getProvider(mediaType).getEpisodes(id);
   }
+
+  public JsonNode getRandom(MediaType mediaType) {
+    return registry.getProvider(mediaType).getRandom();
+  }
+
+  public JsonNode getTopAiring(MediaType mediaType, int page) {
+    return registry.getProvider(mediaType).getTopAiring(page);
+  }
+
+  public JsonNode getTopPopular(MediaType mediaType, int page) {
+    return registry.getProvider(mediaType).getTopPopular(page);
+  }
+
+  public JsonNode getRecommendations(MediaType mediaType, Long id) {
+    return registry.getProvider(mediaType).getRecommendations(id);
+  }
+
+  public JsonNode getListRecommendations(Long userId) {
+    // pick up to 3 random entries from the user's list and fetch their recommendations
+    List<UserMedia> entries =  userMediaRepository.findByUserIdOrderByUpdatedAtDesc(userId);
+    if (entries.isEmpty()) return new ObjectMapper().createObjectNode();
+    // pick at most 3 random entries
+    List<UserMedia> randomEntries = entries.stream()
+            .limit(3)
+            .toList();
+
+    ObjectMapper mapper = new ObjectMapper();
+    ArrayNode combined = mapper.createArrayNode();
+    for (UserMedia entry : randomEntries) {
+      JsonNode recs = registry.getProvider(entry.getMediaType()).getRecommendations(entry.getMediaId());
+      if (recs != null && recs.has("data")) {
+        recs.get("data").forEach(r -> {
+          if (combined.size() < 12) combined.add(r);
+        });
+      }
+    }
+    ObjectNode result = mapper.createObjectNode();
+    result.set("data", combined);
+    return result;
+  }
+
 
   private void cacheMedia(JsonNode data, MediaType mediaType) {
     MediaCache cache = new MediaCache();

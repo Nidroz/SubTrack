@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { searchMedia } from '../services/api'
 import { useListStore } from '../store/listStore'
 import { MediaResult, MediaType } from '../types'
+import { getRandom } from '../services/api'
 
 export default function Search() {
     const [searchParams, setSearchParams] = useSearchParams()
@@ -65,6 +66,20 @@ export default function Search() {
         }
     }
 
+    const [randomLoading, setRandomLoading] = useState(false)
+    const handleSurprise = async () => {
+        setRandomLoading(true)
+        try {
+            const data = await getRandom(type)
+            const item = data?.data
+            if (item?.mal_id) {
+                navigate(`/${type.toLowerCase()}/${item.mal_id}`)
+            }
+        } finally {
+            setRandomLoading(false)
+        }
+    }
+
     return (
         <div className="flex flex-col gap-8">
             <header>
@@ -101,6 +116,15 @@ export default function Search() {
                     className="bg-rose-500 hover:bg-rose-400 disabled:opacity-50 text-white font-semibold text-sm px-5 py-2 rounded-lg transition-colors"
                 >
                     {loading ? '...' : 'Search'}
+                </button>
+
+                <button
+                    onClick={handleSurprise}
+                    disabled={randomLoading}
+                    className="bg-violet-500/10 hover:bg-violet-500/20 border border-violet-500/20 text-violet-400 font-semibold text-sm px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                    title="Random anime or manga"
+                >
+                    {randomLoading ? '...' : '🎲'}
                 </button>
             </div>
 

@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -26,6 +27,8 @@ public interface UserMediaRepository extends JpaRepository<UserMedia, Long> {
   Optional<UserMedia> findByIdAndUserId(Long id, Long userId);
   long countByUserId(Long userId);
   long countByUserIdAndStatus(Long userId, WatchStatus status);
+
+  List<UserMedia> findByUserIdOrderByUpdatedAtDesc(Long userId);
 
   @Query("SELECT AVG(u.score) FROM UserMedia u WHERE u.user.id = :userId AND u.score IS NOT NULL")
   Double avgScoreByUserId(@Param("userId") Long userId);

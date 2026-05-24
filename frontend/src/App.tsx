@@ -6,6 +6,7 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Search from './pages/Search'
 import MyList from './pages/MyList'
+import Discover from './pages/Discover'
 import MediaDetail from './pages/MediaDetail'
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
             <Route element={<AuthGuard><Layout /></AuthGuard>}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/search" element={<Search />} />
+                <Route path="/discover" element={<Discover />} />
                 <Route path="/list" element={<MyList />} />
                 <Route path="/:type/:id" element={<MediaDetail />} />
             </Route>

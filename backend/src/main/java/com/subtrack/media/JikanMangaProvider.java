@@ -43,4 +43,36 @@ public class JikanMangaProvider extends AbstractMediaProvider {
     // manga has no episodes, return empty node
     return get(BASE + "/manga/" + id + "/chapters");
   }
+
+  @Override
+  public JsonNode getRandom() {
+    return get(BASE + "/random/manga");
+  }
+
+  @Override
+  public JsonNode getTopAiring(int page) {
+    String url = UriComponentsBuilder.fromHttpUrl(BASE)
+            .path("/top/manga")
+            .queryParam("filter", "publishing")
+            .queryParam("page", page)
+            .queryParam("limit", 12)
+            .toUriString();
+    return get(url);
+  }
+
+  @Override
+  public JsonNode getTopPopular(int page) {
+    String url = UriComponentsBuilder.fromHttpUrl(BASE)
+            .path("/top/manga")
+            .queryParam("filter", "bypopularity")
+            .queryParam("page", page)
+            .queryParam("limit", 12)
+            .toUriString();
+    return get(url);
+  }
+
+  @Override
+  public JsonNode getRecommendations(Long id) {
+    return get(BASE + "/manga/" + id + "/recommendations");
+  }
 }

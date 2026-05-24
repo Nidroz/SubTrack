@@ -28,6 +28,7 @@ export default function Layout() {
                 <nav className="flex flex-col gap-1 flex-1">
                     <NavLink to="/" end className={navLink}>Dashboard</NavLink>
                     <NavLink to="/search" className={navLink}>Search</NavLink>
+                    <NavLink to="/discover" className={navLink}>Discover</NavLink>
                     <NavLink to="/list" className={navLink}>My List</NavLink>
                 </nav>
 

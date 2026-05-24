@@ -71,3 +71,19 @@ export const deleteEntry = (id: number) =>
 
 export const getStats = () =>
     api.get('/lists/stats').then(r => r.data)
+
+// ── discover ──────────────────────────────────────────────────────────────
+export const getRandom = (type: 'ANIME' | 'MANGA') =>
+    api.get('/media/random', { params: { type } }).then(r => r.data)
+
+export const getTopAiring = (type: 'ANIME' | 'MANGA', page = 1) =>
+    api.get('/media/top/airing', { params: { type, page } }).then(r => r.data)
+
+export const getTopPopular = (type: 'ANIME' | 'MANGA', page = 1) =>
+    api.get('/media/top/popular', { params: { type, page } }).then(r => r.data)
+
+export const getRecommendations = (type: 'ANIME' | 'MANGA', id: number) =>
+    api.get(`/media/${type}/${id}/recommendations`).then(r => r.data)
+
+export const getMyRecommendations = () =>
+    api.get('/media/recommendations/me').then(r => r.data)

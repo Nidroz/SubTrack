@@ -42,4 +42,36 @@ public class JikanAnimeProvider extends AbstractMediaProvider {
   public JsonNode getEpisodes(Long id) {
     return get(BASE + "/anime/" + id + "/episodes");
   }
+
+  @Override
+  public JsonNode getRandom() {
+    return get(BASE + "/random/anime");
+  }
+
+  @Override
+  public JsonNode getTopAiring(int page) {
+    String url = UriComponentsBuilder.fromHttpUrl(BASE)
+            .path("/top/anime")
+            .queryParam("filter", "airing")
+            .queryParam("page", page)
+            .queryParam("limit", 12)
+            .toUriString();
+    return get(url);
+  }
+
+  @Override
+  public JsonNode getTopPopular(int page) {
+    String url = UriComponentsBuilder.fromHttpUrl(BASE)
+            .path("/top/anime")
+            .queryParam("filter", "bypopularity")
+            .queryParam("page", page)
+            .queryParam("limit", 12)
+            .toUriString();
+    return get(url);
+  }
+
+  @Override
+  public JsonNode getRecommendations(Long id) {
+    return get(BASE + "/anime/" + id + "/recommendations");
+  }
 }

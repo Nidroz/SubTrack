@@ -12,4 +12,8 @@ public interface MediaProvider {
   JsonNode search(String query, int page);
   JsonNode getById(Long id);
   JsonNode getEpisodes(Long id);
+  JsonNode getRandom();
+  JsonNode getTopAiring(int page);
+  JsonNode getTopPopular(int page);
+  JsonNode getRecommendations(Long id);
 }

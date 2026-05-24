@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -20,12 +22,20 @@ public class AuthController {
   private final AuthService authService;
 
   @PostMapping("/login")
-  public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
-    return ResponseEntity.ok(authService.login(loginRequest));
+  public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
+    try {
+      return ResponseEntity.ok(authService.login(req));
+    } catch (Exception e) {
+      return ResponseEntity.status(403).body(Map.of("message", "Invalid credentials"));
+    }
   }
 
   @PostMapping("/register")
-  public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest registerRequest) {
-    return ResponseEntity.ok(authService.register(registerRequest));
+  public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
+    try {
+      return ResponseEntity.ok(authService.register(req));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+    }
   }
  }

@@ -3,6 +3,7 @@ package com.subtrack.service;
 import com.subtrack.dto.AuthResponse;
 import com.subtrack.dto.LoginRequest;
 import com.subtrack.dto.RegisterRequest;
+import com.subtrack.entity.RefreshToken;
 import com.subtrack.entity.User;
 import com.subtrack.repository.UserRepository;
 import com.subtrack.security.JwtUtil;
@@ -19,28 +20,47 @@ public class AuthService {
   private final PasswordEncoder passwordEncoder;
   private final JwtUtil jwtUtil;
   private final AuthenticationManager authenticationManager;
+  private final TokenService tokenService;
 
-  public AuthResponse login(LoginRequest loginRequest) {
-    String username = loginRequest.getUsername();
+  public AuthResponse login(LoginRequest req) {
     authenticationManager.authenticate(
-            new UsernamePasswordAuthenticationToken(username, loginRequest.getPassword())
-    );
-    String token = jwtUtil.generateToken(username);
-    return new AuthResponse(token, username);
+            new UsernamePasswordAuthenticationToken(req.getUsername(), req.getPassword()));
+    User user = userRepository.findByUsername(req.getUsername()).orElseThrow();
+    String accessToken = jwtUtil.generate(user.getUsername());
+    RefreshToken refreshToken = tokenService.createRefreshToken(user);
+    return new AuthResponse(accessToken, refreshToken.getToken(), user.getUsername(), jwtUtil.getExpirationMs() / 1000);
   }
 
-  public AuthResponse register(RegisterRequest registerRequest) {
-    if (userRepository.existsByUsername(registerRequest.getUsername())) {
-      throw new RuntimeException("Username already taken !");
-    }
-    if (userRepository.existsByEmail(registerRequest.getEmail())) {
-      throw new RuntimeException("Email already in use !");
-    }
+  public AuthResponse register(RegisterRequest req) {
+    if (userRepository.existsByUsername(req.getUsername()))
+      throw new IllegalArgumentException("Username already taken");
+    if (userRepository.existsByEmail(req.getEmail()))
+      throw new IllegalArgumentException("Email already in use");
+
     User user = new User();
-    user.setUsername(registerRequest.getUsername());
-    user.setEmail(registerRequest.getEmail());
-    user.setPassword(passwordEncoder.encode(registerRequest.getPassword()));
+    user.setUsername(req.getUsername());
+    user.setEmail(req.getEmail());
+    user.setPassword(passwordEncoder.encode(req.getPassword()));
     userRepository.save(user);
-    return new AuthResponse(jwtUtil.generateToken(user.getUsername()), user.getUsername());
+
+    String accessToken = jwtUtil.generate(user.getUsername());
+    RefreshToken refreshToken = tokenService.createRefreshToken(user);
+    return new AuthResponse(accessToken, refreshToken.getToken(), user.getUsername(), jwtUtil.getExpirationMs() / 1000);
+  }
+
+  public AuthResponse refresh(String rawRefreshToken) {
+    RefreshToken refreshToken = tokenService.validateRefreshToken(rawRefreshToken);
+    User user = refreshToken.getUser();
+    // rotate refresh token on each use
+    tokenService.revokeRefreshToken(rawRefreshToken);
+    RefreshToken newRefreshToken = tokenService.createRefreshToken(user);
+    String newAccessToken = jwtUtil.generate(user.getUsername());
+    return new AuthResponse(newAccessToken, newRefreshToken.getToken(), user.getUsername(), jwtUtil.getExpirationMs() / 1000);
+  }
+
+  public void logout(String accessToken, Long userId) {
+    // blacklist the current access token
+    tokenService.blacklistAccessToken(accessToken);
+    tokenService.revokeAllUserTokens(userId);
   }
 }

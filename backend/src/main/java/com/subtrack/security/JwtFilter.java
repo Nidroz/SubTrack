@@ -1,5 +1,6 @@
 package com.subtrack.security;
 
+import com.subtrack.service.TokenService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -20,9 +21,13 @@ import java.io.IOException;
 public class JwtFilter extends OncePerRequestFilter {
   private final JwtUtil jwtUtil;
   private final UserDetailsService userDetailsService;
+  private final TokenService tokenService;
 
   @Override
-  protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+  protected void doFilterInternal(HttpServletRequest request,
+                                  HttpServletResponse response,
+                                  FilterChain filterChain) throws ServletException, IOException {
+
     String header = request.getHeader("Authorization");
     if (header == null || !header.startsWith("Bearer ")) {
       filterChain.doFilter(request, response);
@@ -30,17 +35,20 @@ public class JwtFilter extends OncePerRequestFilter {
     }
 
     String token = header.substring(7);
-    if (!jwtUtil.isValid(token)) {
+
+    // reject if token is invalid or blacklisted
+    if (!jwtUtil.isValid(token) || tokenService.isAccessTokenBlacklisted(token)) {
       filterChain.doFilter(request, response);
       return;
     }
 
     String username = jwtUtil.extractUsername(token);
     UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-    UsernamePasswordAuthenticationToken authenticationToken
-            = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-    authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-    SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+
+    UsernamePasswordAuthenticationToken auth =
+            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+    auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+    SecurityContextHolder.getContext().setAuthentication(auth);
 
     filterChain.doFilter(request, response);
   }

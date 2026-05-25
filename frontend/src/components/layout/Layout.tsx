@@ -9,7 +9,7 @@ const navLink = ({ isActive }: { isActive: boolean }) =>
     }`
 
 export default function Layout() {
-    const { username, logout } = useAuthStore()
+    const { username, role, logout } = useAuthStore()
     const navigate = useNavigate()
 
     return (
@@ -26,6 +26,15 @@ export default function Layout() {
                     <NavLink to="/search" className={navLink}>Search</NavLink>
                     <NavLink to="/discover" className={navLink}>Discover</NavLink>
                     <NavLink to="/list" className={navLink}>My List</NavLink>
+                    {/* admin link — only visible for admins */}
+                    {role === 'ADMIN' && (
+                        <NavLink to="/admin" className={navLink}>
+                            <span className="flex items-center gap-2">
+                                <span className="text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/20 px-1.5 py-0.5 rounded font-black">A</span>
+                                Admin
+                            </span>
+                        </NavLink>
+                    )}
                 </nav>
 
                 <div className="border-t border-white/5 pt-4 flex flex-col gap-1">

@@ -4,6 +4,7 @@ import com.subtrack.dto.AuthResponse;
 import com.subtrack.dto.LoginRequest;
 import com.subtrack.dto.RegisterRequest;
 import com.subtrack.entity.RefreshToken;
+import com.subtrack.entity.Role;
 import com.subtrack.entity.User;
 import com.subtrack.repository.UserRepository;
 import com.subtrack.security.JwtUtil;
@@ -28,7 +29,7 @@ public class AuthService {
     User user = userRepository.findByUsername(req.getUsername()).orElseThrow();
     String accessToken = jwtUtil.generate(user.getUsername());
     RefreshToken refreshToken = tokenService.createRefreshToken(user);
-    return new AuthResponse(accessToken, refreshToken.getToken(), user.getUsername(), jwtUtil.getExpirationMs() / 1000);
+    return new AuthResponse(accessToken, refreshToken.getToken(), user.getUsername(), jwtUtil.getExpirationMs() / 1000, user.getRole().name());
   }
 
   public AuthResponse register(RegisterRequest req) {
@@ -38,6 +39,11 @@ public class AuthService {
       throw new IllegalArgumentException("Email already in use");
 
     User user = new User();
+    if (userRepository.count() == 0) {
+      user.setRole(Role.ADMIN);
+    } else {
+      user.setRole(Role.USER);
+    }
     user.setUsername(req.getUsername());
     user.setEmail(req.getEmail());
     user.setPassword(passwordEncoder.encode(req.getPassword()));
@@ -45,7 +51,7 @@ public class AuthService {
 
     String accessToken = jwtUtil.generate(user.getUsername());
     RefreshToken refreshToken = tokenService.createRefreshToken(user);
-    return new AuthResponse(accessToken, refreshToken.getToken(), user.getUsername(), jwtUtil.getExpirationMs() / 1000);
+    return new AuthResponse(accessToken, refreshToken.getToken(), user.getUsername(), jwtUtil.getExpirationMs() / 1000, user.getRole().name());
   }
 
   public AuthResponse refresh(String rawRefreshToken) {
@@ -55,7 +61,7 @@ public class AuthService {
     tokenService.revokeRefreshToken(rawRefreshToken);
     RefreshToken newRefreshToken = tokenService.createRefreshToken(user);
     String newAccessToken = jwtUtil.generate(user.getUsername());
-    return new AuthResponse(newAccessToken, newRefreshToken.getToken(), user.getUsername(), jwtUtil.getExpirationMs() / 1000);
+    return new AuthResponse(newAccessToken, newRefreshToken.getToken(), user.getUsername(), jwtUtil.getExpirationMs() / 1000, user.getRole().name());
   }
 
   public void logout(String accessToken, Long userId) {

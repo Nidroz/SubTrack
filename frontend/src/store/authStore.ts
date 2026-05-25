@@ -11,6 +11,7 @@ interface AuthStore {
     register: (username: string, email: string, password: string) => Promise<void>
     logout: () => Promise<void>
     tryRefresh: () => Promise<boolean>
+    role: string | null
 }
 
 function storeAuthData(data: AuthResponse) {
@@ -27,6 +28,7 @@ function clearAuthData() {
     localStorage.removeItem('refreshToken')
     localStorage.removeItem('username')
     localStorage.removeItem('expiresAt')
+    localStorage.removeItem('role')
 }
 
 export const useAuthStore = create<AuthStore>((set, get) => ({
@@ -35,23 +37,26 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     username: localStorage.getItem('username'),
     isAuthenticated: !!localStorage.getItem('accessToken'),
     expiresAt: Number(localStorage.getItem('expiresAt')) || null,
+    role: localStorage.getItem('role'),
 
     login: async (username, password) => {
         const data = await apiLogin(username, password)
         const expiresAt = storeAuthData(data)
-        set({ accessToken: data.accessToken, refreshToken: data.refreshToken, username: data.username, isAuthenticated: true, expiresAt })
+        localStorage.setItem('role', data.role ?? 'USER')
+        set({ accessToken: data.accessToken, refreshToken: data.refreshToken, username: data.username, isAuthenticated: true, expiresAt, role: data.role ?? 'USER' })
     },
 
     register: async (username, email, password) => {
         const data = await apiRegister(username, email, password)
         const expiresAt = storeAuthData(data)
-        set({ accessToken: data.accessToken, refreshToken: data.refreshToken, username: data.username, isAuthenticated: true, expiresAt })
+        localStorage.setItem('role', data.role ?? 'USER')
+        set({ accessToken: data.accessToken, refreshToken: data.refreshToken, username: data.username, isAuthenticated: true, expiresAt, role: data.role ?? 'USER' })
     },
 
     logout: async () => {
         try { await apiLogout() } catch {}
         clearAuthData()
-        set({ accessToken: null, refreshToken: null, username: null, isAuthenticated: false, expiresAt: null })
+        set({ accessToken: null, refreshToken: null, username: null, isAuthenticated: false, expiresAt: null, role: null })
     },
 
     tryRefresh: async () => {
@@ -60,7 +65,8 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
         try {
             const data = await apiRefresh(refreshToken)
             const expiresAt = storeAuthData(data)
-            set({ accessToken: data.accessToken, refreshToken: data.refreshToken, isAuthenticated: true, expiresAt })
+            localStorage.setItem('role', data.role ?? 'USER')
+            set({ accessToken: data.accessToken, refreshToken: data.refreshToken, isAuthenticated: true, expiresAt, role: data.role ?? 'USER' })
             return true
         } catch {
             clearAuthData()

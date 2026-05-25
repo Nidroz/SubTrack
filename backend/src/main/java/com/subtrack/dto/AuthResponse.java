@@ -11,4 +11,5 @@ public class AuthResponse {
   private String username;
   // access token TTL in seconds for frontend convenience
   private long expiresIn;
+  private String role;
 }

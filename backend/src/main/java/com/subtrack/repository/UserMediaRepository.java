@@ -30,6 +30,8 @@ public interface UserMediaRepository extends JpaRepository<UserMedia, Long> {
 
   List<UserMedia> findByUserIdOrderByUpdatedAtDesc(Long userId);
 
+  void deleteAllByUserId(Long userId);
+
   @Query("SELECT AVG(u.score) FROM UserMedia u WHERE u.user.id = :userId AND u.score IS NOT NULL")
   Double avgScoreByUserId(@Param("userId") Long userId);
 }

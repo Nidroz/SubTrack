@@ -50,7 +50,7 @@ public class EmailChangeService {
     tokenRepository.save(token);
   }
 
-  @Scheduled(cron = "0 45 3 * * *")
+  @Scheduled(cron = "0 45 3 * * *") // every day at 3:45 AM
   public void cleanupExpiredTokens() {
     tokenRepository.deleteExpiredAndUsed(LocalDateTime.now());
   }

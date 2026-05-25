@@ -8,6 +8,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -38,11 +39,13 @@ public class SecurityConfig {
                             "/api/auth/**",
                             "/api/profile/email/confirm",  // token-based, no auth needed
                             "/h2-console/**"
-                    ).permitAll()
+                    )
+                    .permitAll()
+                    .requestMatchers("/api/admin/**").hasRole("ADMIN")
                     .anyRequest().authenticated()
             )
             .headers(h -> h
-                    .frameOptions(fo -> fo.disable())
+                    .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable)
                     // security headers
                     .httpStrictTransportSecurity(hsts -> hsts
                             .includeSubDomains(true)

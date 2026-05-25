@@ -122,3 +122,25 @@ export const getProfileStats = () =>
 
 export const changePassword = (currentPassword: string, newPassword: string) =>
     api.patch('/profile/password', { currentPassword, newPassword }).then(r => r.data)
+
+// ── admin ─────────────────────────────────────────────────────────────────
+export const getAdminUsers = () =>
+    api.get('/admin/users').then(r => r.data)
+
+export const getAdminStats = () =>
+    api.get('/admin/stats').then(r => r.data)
+
+export const deleteUser = (id: number) =>
+    api.delete(`/admin/users/${id}`).then(r => r.data)
+
+export const promoteUser = (id: number) =>
+    api.patch(`/admin/users/${id}/promote`).then(r => r.data)
+
+export const demoteUser = (id: number) =>
+    api.patch(`/admin/users/${id}/demote`).then(r => r.data)
+
+export const clearMediaCache = () =>
+    api.delete('/admin/cache').then(r => r.data)
+
+export const getMediaCacheSize = () =>
+    api.get('/admin/cache/size').then(r => r.data)

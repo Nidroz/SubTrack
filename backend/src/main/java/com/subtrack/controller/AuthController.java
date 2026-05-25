@@ -6,6 +6,7 @@ import com.subtrack.dto.RefreshRequest;
 import com.subtrack.dto.RegisterRequest;
 import com.subtrack.repository.UserRepository;
 import com.subtrack.service.AuthService;
+import com.subtrack.service.PasswordResetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +22,7 @@ import java.util.Map;
 public class AuthController {
   private final AuthService authService;
   private final UserRepository userRepository;
+  private final PasswordResetService passwordResetService;
 
   @PostMapping("/register")
   public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest registerRequest) {
@@ -58,4 +60,22 @@ public class AuthController {
     authService.logout(token, userId);
     return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
   }
+
+  @PostMapping("/forgot-password")
+  public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
+    // always return 200 to avoid email enumeration
+    passwordResetService.requestReset(body.get("email"));
+    return ResponseEntity.ok(Map.of("message", "If this email exists, a reset link has been sent."));
+  }
+
+  @PostMapping("/reset-password")
+  public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
+    try {
+      passwordResetService.resetPassword(body.get("token"), body.get("newPassword"));
+      return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+    }
+  }
+
 }

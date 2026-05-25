@@ -34,7 +34,11 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                    .requestMatchers("/api/auth/**", "/h2-console/**").permitAll()
+                    .requestMatchers(
+                            "/api/auth/**",
+                            "/api/profile/email/confirm",  // token-based, no auth needed
+                            "/h2-console/**"
+                    ).permitAll()
                     .anyRequest().authenticated()
             )
             .headers(h -> h

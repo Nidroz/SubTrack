@@ -19,12 +19,32 @@ export default function Discover() {
     const trackedIds = new Set(entries.map(e => e.mediaId))
 
     useEffect(() => {
-        fetchList()
-        loadSection(section, type)
-    }, [])
+        let cancelled = false
 
-    useEffect(() => {
-        loadSection(section, type)
+        const load = async () => {
+            setLoading(true)
+            setResults([])
+            try {
+                let data
+                if (section === 'airing') data = await getTopAiring(type)
+                else if (section === 'popular') data = await getTopPopular(type)
+                else data = await getMyRecommendations()
+
+                if (cancelled) return
+                if (!data) { setResults([]); return }
+                if (section === 'recommended') {
+                    setResults((data.data ?? []).map((r: any) => r.entry).filter(Boolean))
+                } else {
+                    setResults(data.data ?? [])
+                }
+            } catch {
+                if (!cancelled) setResults([])
+            } finally {
+                if (!cancelled) setLoading(false)
+            }
+        }
+        load()
+        return () => { cancelled = true }
     }, [section, type])
 
     const loadSection = async (s: Section, t: MediaType) => {

@@ -1,0 +1,65 @@
+package com.subtrack.security;
+
+import io.github.bucket4j.Bandwidth;
+import io.github.bucket4j.Bucket;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * rate limits login and register endpoints per IP.
+ * allows 10 attempts per minute — blocks with 429 if exceeded.
+ */
+@Component
+public class RateLimitFilter extends OncePerRequestFilter {
+  private static final int MAX_REQUESTS_PER_MINUTE = 10;
+  private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
+
+  @Override
+  protected void doFilterInternal(HttpServletRequest request,
+                                  HttpServletResponse response,
+                                  FilterChain filterChain) throws ServletException, IOException {
+
+    String path = request.getRequestURI();
+    if (!path.equals("/api/auth/login") && !path.equals("/api/auth/register")) {
+      filterChain.doFilter(request, response);
+      return;
+    }
+
+    String ip = getClientIp(request);
+    Bucket bucket = buckets.computeIfAbsent(ip, this::newBucket);
+
+    if (bucket.tryConsume(1)) {
+      filterChain.doFilter(request, response);
+    } else {
+      response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+      response.setContentType("application/json");
+      response.getWriter().write("{\"message\":\"Too many requests. Please wait before trying again.\"}");
+    }
+  }
+
+  private Bucket newBucket(String ip) {
+    Bandwidth limit = Bandwidth.builder()
+            .capacity(MAX_REQUESTS_PER_MINUTE)
+            .refillGreedy(MAX_REQUESTS_PER_MINUTE, Duration.ofMinutes(1))
+            .build();
+    return Bucket.builder().addLimit(limit).build();
+  }
+
+  private String getClientIp(HttpServletRequest request) {
+    String xForwardedFor = request.getHeader("X-Forwarded-For");
+    if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+      return xForwardedFor.split(",")[0].trim();
+    }
+    return request.getRemoteAddr();
+  }
+}

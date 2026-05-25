@@ -1,4 +1,4 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
 
 const navLink = ({ isActive }: { isActive: boolean }) =>
@@ -12,18 +12,14 @@ export default function Layout() {
     const { username, logout } = useAuthStore()
     const navigate = useNavigate()
 
-    const handleLogout = () => {
-        logout()
-        navigate('/login')
-    }
-
     return (
         <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
             <aside className="w-56 shrink-0 border-r border-white/5 flex flex-col px-4 py-7 sticky top-0 h-screen">
-                <div className="flex items-center gap-2 mb-10">
-                    <span className="text-rose-400 text-xl">⬡</span>
-                    <span className="font-black text-lg tracking-tight">SubTrack</span>
-                </div>
+                {/* logo -> dashboard */}
+                <Link to="/" className="flex items-center gap-2 mb-10 group">
+                    <span className="text-rose-400 text-xl group-hover:text-rose-300 transition-colors">⬡</span>
+                    <span className="font-black text-lg tracking-tight group-hover:text-zinc-300 transition-colors">SubTrack</span>
+                </Link>
 
                 <nav className="flex flex-col gap-1 flex-1">
                     <NavLink to="/" end className={navLink}>Dashboard</NavLink>
@@ -32,11 +28,19 @@ export default function Layout() {
                     <NavLink to="/list" className={navLink}>My List</NavLink>
                 </nav>
 
-                <div className="border-t border-white/5 pt-4 flex flex-col gap-2">
-                    <span className="text-xs text-zinc-500 truncate">{username}</span>
+                <div className="border-t border-white/5 pt-4 flex flex-col gap-1">
+                    {/* profile link */}
+                    <NavLink to="/profile" className={navLink}>
+                        <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 text-xs font-black shrink-0">
+                                {username?.[0]?.toUpperCase()}
+                            </div>
+                            <span className="truncate">{username}</span>
+                        </div>
+                    </NavLink>
                     <button
-                        onClick={handleLogout}
-                        className="text-xs text-zinc-600 hover:text-rose-400 text-left transition-colors"
+                        onClick={() => { logout(); navigate('/login') }}
+                        className="flex items-center px-3 py-2 rounded-lg text-xs text-zinc-600 hover:text-red-400 hover:bg-white/5 transition-colors text-left"
                     >
                         Sign out
                     </button>

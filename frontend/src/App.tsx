@@ -8,6 +8,7 @@ import Search from './pages/Search'
 import MyList from './pages/MyList'
 import Discover from './pages/Discover'
 import MediaDetail from './pages/MediaDetail'
+import Profile from './pages/Profile'
 
 export default function App() {
     return (
@@ -20,6 +21,7 @@ export default function App() {
                 <Route path="/search" element={<Search />} />
                 <Route path="/discover" element={<Discover />} />
                 <Route path="/list" element={<MyList />} />
+                <Route path="/profile" element={<Profile />} />
                 <Route path="/:type/:id" element={<MediaDetail />} />
             </Route>
 

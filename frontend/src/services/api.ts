@@ -87,3 +87,13 @@ export const getRecommendations = (type: 'ANIME' | 'MANGA', id: number) =>
 
 export const getMyRecommendations = () =>
     api.get('/media/recommendations/me').then(r => r.data)
+
+// ── profile ───────────────────────────────────────────────────────────────
+export const getProfile = () =>
+    api.get('/profile').then(r => r.data)
+
+export const getProfileStats = () =>
+    api.get('/profile/stats').then(r => r.data)
+
+export const changePassword = (currentPassword: string, newPassword: string) =>
+    api.patch('/profile/password', { currentPassword, newPassword }).then(r => r.data)

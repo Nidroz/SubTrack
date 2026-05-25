@@ -7,6 +7,7 @@ import com.subtrack.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -35,12 +36,13 @@ public class EmailChangeService {
     emailService.sendEmailChangeConfirmation(newEmail, token.getToken(), newEmail);
   }
 
+  @Transactional
   public void confirmEmailChange(String tokenStr) {
     EmailChangeToken token = tokenRepository.findByToken(tokenStr)
             .filter(EmailChangeToken::isValid)
             .orElseThrow(() -> new IllegalArgumentException("Invalid or expired token"));
 
-    User user = token.getUser();
+    User user = userRepository.findById(token.getUser().getId()).orElseThrow();
     user.setEmail(token.getNewEmail());
     userRepository.save(user);
 

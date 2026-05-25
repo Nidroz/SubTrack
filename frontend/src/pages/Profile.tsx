@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { getProfile, getProfileStats, changePassword } from '../services/api'
 import { useAuthStore } from '../store/authStore'
+import { changeEmail } from '../services/api'
 
 interface Profile {
     id: number
@@ -51,6 +52,10 @@ export default function Profile() {
     const [pwdMsg, setPwdMsg] = useState<{ text: string; ok: boolean } | null>(null)
     const [pwdLoading, setPwdLoading] = useState(false)
 
+    const [newEmail, setNewEmail] = useState('')
+    const [emailMsg, setEmailMsg] = useState<{ text: string; ok: boolean } | null>(null)
+    const [emailLoading, setEmailLoading] = useState(false)
+
     useEffect(() => {
         Promise.all([getProfile(), getProfileStats()])
             .then(([p, s]) => { setProfile(p); setStats(s) })
@@ -78,6 +83,20 @@ export default function Profile() {
         }
     }
 
+    const handleEmailChange = async () => {
+        if (!newEmail) return
+        setEmailLoading(true)
+        try {
+            await changeEmail(newEmail)
+            setEmailMsg({ text: `Confirmation sent to ${newEmail}`, ok: true })
+            setNewEmail('')
+        } catch (e: any) {
+            setEmailMsg({ text: e?.response?.data?.message ?? 'Failed', ok: false })
+        } finally {
+            setEmailLoading(false)
+        }
+    }
+
     if (loading) return <p className="text-zinc-500 text-sm">Loading...</p>
 
     const scoreEntries = stats
@@ -101,7 +120,8 @@ export default function Profile() {
                 <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Account</h2>
                 <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-4">
                     <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 font-black text-xl">
+                        <div
+                            className="w-14 h-14 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 font-black text-xl">
                             {profile?.username[0].toUpperCase()}
                         </div>
                         <div>
@@ -153,13 +173,14 @@ export default function Profile() {
                         <p className="text-xs text-zinc-500 uppercase tracking-widest">Status breakdown</p>
                         <div className="flex flex-wrap gap-2">
                             {[
-                                { key: 'watching',    label: 'Watching',      value: stats.watching },
-                                { key: 'completed',   label: 'Completed',     value: stats.completed },
-                                { key: 'planToWatch', label: 'Plan to watch', value: stats.planToWatch },
-                                { key: 'dropped',     label: 'Dropped',       value: stats.dropped },
-                                { key: 'onHold',      label: 'On hold',       value: stats.onHold },
+                                {key: 'watching', label: 'Watching', value: stats.watching},
+                                {key: 'completed', label: 'Completed', value: stats.completed},
+                                {key: 'planToWatch', label: 'Plan to watch', value: stats.planToWatch},
+                                {key: 'dropped', label: 'Dropped', value: stats.dropped},
+                                {key: 'onHold', label: 'On hold', value: stats.onHold},
                             ].map(s => (
-                                <div key={s.key} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${STATUS_COLORS[s.key]}`}>
+                                <div key={s.key}
+                                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${STATUS_COLORS[s.key]}`}>
                                     <span>{s.label}</span>
                                     <span className="font-black">{s.value}</span>
                                 </div>
@@ -172,14 +193,14 @@ export default function Profile() {
                         <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-3">
                             <p className="text-xs text-zinc-500 uppercase tracking-widest">Score distribution</p>
                             <div className="flex items-end gap-1.5 h-20">
-                                {Array.from({ length: 10 }, (_, i) => i + 1).map(score => {
+                                {Array.from({length: 10}, (_, i) => i + 1).map(score => {
                                     const count = stats.scoreDistribution[score] ?? 0
                                     const height = count ? Math.max((count / maxScore) * 100, 8) : 0
                                     return (
                                         <div key={score} className="flex flex-col items-center gap-1 flex-1">
                                             <div
                                                 className="w-full rounded-sm bg-rose-500/60 transition-all"
-                                                style={{ height: `${height}%`, minHeight: count ? '4px' : '0' }}
+                                                style={{height: `${height}%`, minHeight: count ? '4px' : '0'}}
                                             />
                                             <span className="text-[10px] text-zinc-600">{score}</span>
                                         </div>
@@ -198,9 +219,9 @@ export default function Profile() {
                     <p className="text-sm font-medium">Change password</p>
                     <div className="flex flex-col gap-3">
                         {[
-                            { label: 'Current password', value: currentPwd, set: setCurrentPwd },
-                            { label: 'New password',     value: newPwd,     set: setNewPwd },
-                            { label: 'Confirm new',      value: confirmPwd, set: setConfirmPwd },
+                            {label: 'Current password', value: currentPwd, set: setCurrentPwd},
+                            {label: 'New password', value: newPwd, set: setNewPwd},
+                            {label: 'Confirm new', value: confirmPwd, set: setConfirmPwd},
                         ].map(f => (
                             <div key={f.label} className="flex flex-col gap-1.5">
                                 <label className="text-xs text-zinc-500">{f.label}</label>
@@ -226,6 +247,39 @@ export default function Profile() {
                             className="bg-rose-500 hover:bg-rose-400 disabled:opacity-40 text-white text-sm font-semibold py-2 rounded-lg transition-colors"
                         >
                             {pwdLoading ? 'Updating...' : 'Update password'}
+                        </button>
+                    </div>
+                </div>
+            </section>
+            <section className="flex flex-col gap-4">
+                <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Email</h2>
+                <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-4">
+                    <div>
+                        <p className="text-sm font-medium">Change email</p>
+                        <p className="text-xs text-zinc-500 mt-0.5">Current: {profile?.email}</p>
+                    </div>
+                    <div className="flex flex-col gap-3">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-xs text-zinc-500">New email</label>
+                            <input
+                                type="email"
+                                value={newEmail}
+                                onChange={e => setNewEmail(e.target.value)}
+                                placeholder="new@example.com"
+                                className="bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-white/20 transition-colors"
+                            />
+                        </div>
+                        {emailMsg && (
+                            <p className={`text-xs ${emailMsg.ok ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {emailMsg.text}
+                            </p>
+                        )}
+                        <button
+                            onClick={handleEmailChange}
+                            disabled={emailLoading || !newEmail}
+                            className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-200 text-sm font-semibold py-2 rounded-lg transition-colors"
+                        >
+                            {emailLoading ? 'Sending...' : 'Send confirmation'}
                         </button>
                     </div>
                 </div>

@@ -62,6 +62,9 @@ export const refreshToken = (token: string) =>
 export const logout = () =>
     api.post('/auth/logout').then(r => r.data)
 
+export const changeEmail = (newEmail: string) =>
+    api.post('/profile/email/change', { newEmail }).then(r => r.data)
+
 // ── media ─────────────────────────────────────────────────────────────────
 export const searchMedia = (type: 'ANIME' | 'MANGA', query: string, page = 1) =>
     api.get('/media/search', { params: { type, query, page } }).then(r => r.data)

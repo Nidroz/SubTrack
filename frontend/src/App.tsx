@@ -3,6 +3,9 @@ import Layout from './components/layout/Layout'
 import AuthGuard from './components/auth/AuthGuard'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
+import ConfirmEmail from './pages/ConfirmEmail'
 import Dashboard from './pages/Dashboard'
 import Search from './pages/Search'
 import MyList from './pages/MyList'
@@ -13,9 +16,14 @@ import Profile from './pages/Profile'
 export default function App() {
     return (
         <Routes>
+            {/* public */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/confirm-email" element={<ConfirmEmail />} />
 
+            {/* protected */}
             <Route element={<AuthGuard><Layout /></AuthGuard>}>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/search" element={<Search />} />

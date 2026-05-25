@@ -37,6 +37,7 @@ public class ProfileController {
     return profileService.getStats(userId(userDetails));
   }
 
+  @PatchMapping("/password")
   public ResponseEntity<?> changePassword(
           @AuthenticationPrincipal UserDetails userDetails,
           @Valid @RequestBody ChangePasswordRequest changePasswordRequest
@@ -44,8 +45,8 @@ public class ProfileController {
     try {
       profileService.changePassword(userId(userDetails), changePasswordRequest);
       return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
-    } catch (IllegalArgumentException error) {
-      return ResponseEntity.badRequest().body(Map.of("message", error.getMessage()));
+    } catch (Exception e) {
+      return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
     }
   }
 

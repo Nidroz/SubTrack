@@ -2,6 +2,7 @@ package com.subtrack.controller;
 
 import com.subtrack.dto.ChangePasswordRequest;
 import com.subtrack.dto.ProfileStatsResponse;
+import com.subtrack.dto.ProfileUpdateRequest;
 import com.subtrack.dto.UserProfileResponse;
 import com.subtrack.repository.UserRepository;
 import com.subtrack.service.EmailChangeService;
@@ -67,6 +68,18 @@ public class ProfileController {
     try {
       emailChangeService.confirmEmailChange(body.get("token"));
       return ResponseEntity.ok(Map.of("message", "Email updated successfully"));
+    } catch (IllegalArgumentException e) {
+      return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+    }
+  }
+
+  @PatchMapping
+  public ResponseEntity<?> updateProfile(
+          @AuthenticationPrincipal UserDetails userDetails,
+          @Valid @RequestBody ProfileUpdateRequest profileUpdateRequest) {
+    try {
+      profileService.updateProfile(userId(userDetails), profileUpdateRequest);
+      return ResponseEntity.ok(Map.of("message", "Profile updated successfully"));
     } catch (IllegalArgumentException e) {
       return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
     }

@@ -31,4 +31,7 @@ public class User {
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private Role role = Role.USER;
+
+  @Column(columnDefinition = "TEXT")
+  private String avatarUrl;  // stored as base64 data URL or external URL
 }

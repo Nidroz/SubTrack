@@ -12,6 +12,7 @@ interface AuthStore {
     logout: () => Promise<void>
     tryRefresh: () => Promise<boolean>
     role: string | null
+    setUsername: (username: string) => void
 }
 
 function storeAuthData(data: AuthResponse) {
@@ -73,5 +74,10 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
             set({ accessToken: null, refreshToken: null, username: null, isAuthenticated: false, expiresAt: null })
             return false
         }
+    },
+
+    setUsername: (username: string) => {
+        localStorage.setItem('username', username)
+        set({ username })
     },
 }))

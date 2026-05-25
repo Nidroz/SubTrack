@@ -1,13 +1,14 @@
-import { useEffect, useState } from 'react'
-import { getProfile, getProfileStats, changePassword } from '../services/api'
+import { useEffect, useRef, useState } from 'react'
+import { getProfile, getProfileStats, changePassword, changeEmail, updateProfile } from '../services/api'
 import { useAuthStore } from '../store/authStore'
-import { changeEmail } from '../services/api'
+import PasswordInput from '../components/ui/PasswordInput'
 
 interface Profile {
     id: number
     username: string
     email: string
     createdAt: string
+    avatarUrl?: string
 }
 
 interface ProfileStats {
@@ -41,43 +42,92 @@ function formatTime(minutes: number) {
 }
 
 export default function Profile() {
-    const { logout } = useAuthStore()
+    const { username, setUsername } = useAuthStore()
     const [profile, setProfile] = useState<Profile | null>(null)
     const [stats, setStats] = useState<ProfileStats | null>(null)
     const [loading, setLoading] = useState(true)
 
+    // edit profile state
+    const [editUsername, setEditUsername] = useState('')
+    const [editLoading, setEditLoading] = useState(false)
+    const [editMsg, setEditMsg] = useState<{ text: string; ok: boolean } | null>(null)
+    const avatarInputRef = useRef<HTMLInputElement>(null)
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+    const [pendingAvatar, setPendingAvatar] = useState<string | null>(null)
+
+    // password state
     const [currentPwd, setCurrentPwd] = useState('')
     const [newPwd, setNewPwd] = useState('')
     const [confirmPwd, setConfirmPwd] = useState('')
     const [pwdMsg, setPwdMsg] = useState<{ text: string; ok: boolean } | null>(null)
     const [pwdLoading, setPwdLoading] = useState(false)
 
+    // email state
     const [newEmail, setNewEmail] = useState('')
     const [emailMsg, setEmailMsg] = useState<{ text: string; ok: boolean } | null>(null)
     const [emailLoading, setEmailLoading] = useState(false)
 
-    useEffect(() => {
-        Promise.all([getProfile(), getProfileStats()])
-            .then(([p, s]) => { setProfile(p); setStats(s) })
-            .finally(() => setLoading(false))
-    }, [])
+    const load = async () => {
+        const [p, s] = await Promise.all([getProfile(), getProfileStats()])
+        setProfile(p)
+        setStats(s)
+        setEditUsername(p.username)
+        if (p.avatarUrl) setAvatarPreview(p.avatarUrl)
+        setLoading(false)
+    }
+
+    useEffect(() => { load() }, [])
+
+    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        // limit to 1MB
+        if (file.size > 1024 * 1024) {
+            setEditMsg({ text: 'Image too large (max 1MB)', ok: false })
+            return
+        }
+        const reader = new FileReader()
+        reader.onload = () => {
+            const result = reader.result as string
+            setAvatarPreview(result)
+            setPendingAvatar(result)
+        }
+        reader.readAsDataURL(file)
+    }
+
+    const handleProfileUpdate = async () => {
+        setEditLoading(true)
+        setEditMsg(null)
+        try {
+            await updateProfile({
+                username: editUsername !== profile?.username ? editUsername : undefined,
+                avatarBase64: pendingAvatar ?? undefined,
+            })
+            // update username in authStore if changed
+            if (editUsername !== profile?.username) {
+                setUsername(editUsername)
+                localStorage.setItem('username', editUsername)
+            }
+            setPendingAvatar(null)
+            setEditMsg({ text: 'Profile updated', ok: true })
+            load()
+        } catch (e: any) {
+            setEditMsg({ text: e?.response?.data?.message ?? 'Failed to update', ok: false })
+        } finally {
+            setEditLoading(false)
+        }
+    }
 
     const handlePasswordChange = async () => {
-        if (newPwd !== confirmPwd) {
-            setPwdMsg({ text: 'Passwords do not match', ok: false })
-            return
-        }
-        if (newPwd.length < 6) {
-            setPwdMsg({ text: 'Password must be at least 6 characters', ok: false })
-            return
-        }
+        if (newPwd !== confirmPwd) { setPwdMsg({ text: 'Passwords do not match', ok: false }); return }
+        if (newPwd.length < 6) { setPwdMsg({ text: 'Min 6 characters', ok: false }); return }
         setPwdLoading(true)
         try {
             await changePassword(currentPwd, newPwd)
             setPwdMsg({ text: 'Password updated successfully', ok: true })
             setCurrentPwd(''); setNewPwd(''); setConfirmPwd('')
         } catch (e: any) {
-            setPwdMsg({ text: e?.response?.data?.message ?? 'Failed to update password', ok: false })
+            setPwdMsg({ text: e?.response?.data?.message ?? 'Failed', ok: false })
         } finally {
             setPwdLoading(false)
         }
@@ -103,7 +153,6 @@ export default function Profile() {
         ? Object.entries(stats.scoreDistribution).sort(([a], [b]) => Number(a) - Number(b))
         : []
     const maxScore = Math.max(...scoreEntries.map(([, v]) => v), 1)
-
     const joinDate = profile
         ? new Date(profile.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
         : ''
@@ -115,30 +164,67 @@ export default function Profile() {
                 <p className="text-zinc-500 text-sm mt-1">Your account and stats</p>
             </header>
 
-            {/* account info */}
+            {/* account + edit */}
             <section className="flex flex-col gap-4">
                 <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Account</h2>
-                <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-4">
+                <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-5">
+                    {/* avatar + name row */}
                     <div className="flex items-center gap-4">
+                        {/* avatar */}
                         <div
-                            className="w-14 h-14 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 font-black text-xl">
-                            {profile?.username[0].toUpperCase()}
+                            className="relative w-16 h-16 rounded-full overflow-hidden cursor-pointer group shrink-0"
+                            onClick={() => avatarInputRef.current?.click()}
+                        >
+                            {avatarPreview ? (
+                                <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="w-full h-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 font-black text-2xl">
+                                    {profile?.username[0].toUpperCase()}
+                                </div>
+                            )}
+                            {/* hover overlay */}
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                                    <circle cx="12" cy="13" r="4"/>
+                                </svg>
+                            </div>
+                            <input
+                                ref={avatarInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={handleAvatarChange}
+                            />
                         </div>
-                        <div>
-                            <p className="font-bold text-base">{profile?.username}</p>
-                            <p className="text-sm text-zinc-500">{profile?.email}</p>
+
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs text-zinc-500 mb-1">Member since {joinDate}</p>
+                            <p className="text-xs text-zinc-600">{profile?.email}</p>
                         </div>
                     </div>
-                    <div className="border-t border-white/5 pt-4 flex gap-6 text-sm">
-                        <div>
-                            <p className="text-zinc-500 text-xs mb-0.5">Member since</p>
-                            <p className="text-zinc-300">{joinDate}</p>
-                        </div>
-                        <div>
-                            <p className="text-zinc-500 text-xs mb-0.5">Total entries</p>
-                            <p className="text-zinc-300">{stats?.total ?? 0}</p>
-                        </div>
+
+                    {/* username edit */}
+                    <div className="flex flex-col gap-1.5">
+                        <label className="text-xs text-zinc-500">Username</label>
+                        <input
+                            value={editUsername}
+                            onChange={e => setEditUsername(e.target.value)}
+                            className="bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20 transition-colors"
+                        />
                     </div>
+
+                    {editMsg && (
+                        <p className={`text-xs ${editMsg.ok ? 'text-emerald-400' : 'text-red-400'}`}>{editMsg.text}</p>
+                    )}
+
+                    <button
+                        onClick={handleProfileUpdate}
+                        disabled={editLoading || (editUsername === profile?.username && !pendingAvatar)}
+                        className="bg-rose-500 hover:bg-rose-400 disabled:opacity-40 text-white text-sm font-semibold py-2 rounded-lg transition-colors"
+                    >
+                        {editLoading ? 'Saving...' : 'Save changes'}
+                    </button>
                 </div>
             </section>
 
@@ -146,7 +232,6 @@ export default function Profile() {
             {stats && (
                 <section className="flex flex-col gap-4">
                     <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Stats</h2>
-
                     <div className="grid grid-cols-2 gap-3">
                         <div className="bg-zinc-900 border border-white/5 rounded-xl p-4">
                             <p className="text-xs text-zinc-500 mb-1">Anime tracked</p>
@@ -168,19 +253,17 @@ export default function Profile() {
                         </div>
                     </div>
 
-                    {/* status breakdown */}
                     <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-3">
                         <p className="text-xs text-zinc-500 uppercase tracking-widest">Status breakdown</p>
                         <div className="flex flex-wrap gap-2">
                             {[
-                                {key: 'watching', label: 'Watching', value: stats.watching},
-                                {key: 'completed', label: 'Completed', value: stats.completed},
-                                {key: 'planToWatch', label: 'Plan to watch', value: stats.planToWatch},
-                                {key: 'dropped', label: 'Dropped', value: stats.dropped},
-                                {key: 'onHold', label: 'On hold', value: stats.onHold},
+                                { key: 'watching',    label: 'Watching',      value: stats.watching },
+                                { key: 'completed',   label: 'Completed',     value: stats.completed },
+                                { key: 'planToWatch', label: 'Plan to watch', value: stats.planToWatch },
+                                { key: 'dropped',     label: 'Dropped',       value: stats.dropped },
+                                { key: 'onHold',      label: 'On hold',       value: stats.onHold },
                             ].map(s => (
-                                <div key={s.key}
-                                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${STATUS_COLORS[s.key]}`}>
+                                <div key={s.key} className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium ${STATUS_COLORS[s.key]}`}>
                                     <span>{s.label}</span>
                                     <span className="font-black">{s.value}</span>
                                 </div>
@@ -188,20 +271,16 @@ export default function Profile() {
                         </div>
                     </div>
 
-                    {/* score distribution */}
                     {scoreEntries.length > 0 && (
                         <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-3">
                             <p className="text-xs text-zinc-500 uppercase tracking-widest">Score distribution</p>
                             <div className="flex items-end gap-1.5 h-20">
-                                {Array.from({length: 10}, (_, i) => i + 1).map(score => {
+                                {Array.from({ length: 10 }, (_, i) => i + 1).map(score => {
                                     const count = stats.scoreDistribution[score] ?? 0
                                     const height = count ? Math.max((count / maxScore) * 100, 8) : 0
                                     return (
                                         <div key={score} className="flex flex-col items-center gap-1 flex-1">
-                                            <div
-                                                className="w-full rounded-sm bg-rose-500/60 transition-all"
-                                                style={{height: `${height}%`, minHeight: count ? '4px' : '0'}}
-                                            />
+                                            <div className="w-full rounded-sm bg-rose-500/60 transition-all" style={{ height: `${height}%`, minHeight: count ? '4px' : '0' }} />
                                             <span className="text-[10px] text-zinc-600">{score}</span>
                                         </div>
                                     )
@@ -212,45 +291,7 @@ export default function Profile() {
                 </section>
             )}
 
-            {/* change password */}
-            <section className="flex flex-col gap-4">
-                <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Security</h2>
-                <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-4">
-                    <p className="text-sm font-medium">Change password</p>
-                    <div className="flex flex-col gap-3">
-                        {[
-                            {label: 'Current password', value: currentPwd, set: setCurrentPwd},
-                            {label: 'New password', value: newPwd, set: setNewPwd},
-                            {label: 'Confirm new', value: confirmPwd, set: setConfirmPwd},
-                        ].map(f => (
-                            <div key={f.label} className="flex flex-col gap-1.5">
-                                <label className="text-xs text-zinc-500">{f.label}</label>
-                                <input
-                                    type="password"
-                                    value={f.value}
-                                    onChange={e => f.set(e.target.value)}
-                                    placeholder="••••••••"
-                                    className="bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-white/20 transition-colors"
-                                />
-                            </div>
-                        ))}
-
-                        {pwdMsg && (
-                            <p className={`text-xs ${pwdMsg.ok ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {pwdMsg.text}
-                            </p>
-                        )}
-
-                        <button
-                            onClick={handlePasswordChange}
-                            disabled={pwdLoading || !currentPwd || !newPwd || !confirmPwd}
-                            className="bg-rose-500 hover:bg-rose-400 disabled:opacity-40 text-white text-sm font-semibold py-2 rounded-lg transition-colors"
-                        >
-                            {pwdLoading ? 'Updating...' : 'Update password'}
-                        </button>
-                    </div>
-                </div>
-            </section>
+            {/* email change */}
             <section className="flex flex-col gap-4">
                 <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Email</h2>
                 <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-4">
@@ -269,11 +310,7 @@ export default function Profile() {
                                 className="bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-white/20 transition-colors"
                             />
                         </div>
-                        {emailMsg && (
-                            <p className={`text-xs ${emailMsg.ok ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {emailMsg.text}
-                            </p>
-                        )}
+                        {emailMsg && <p className={`text-xs ${emailMsg.ok ? 'text-emerald-400' : 'text-red-400'}`}>{emailMsg.text}</p>}
                         <button
                             onClick={handleEmailChange}
                             disabled={emailLoading || !newEmail}
@@ -285,14 +322,39 @@ export default function Profile() {
                 </div>
             </section>
 
-            {/* danger zone */}
+            {/* password */}
+            <section className="flex flex-col gap-4">
+                <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Security</h2>
+                <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-4">
+                    <p className="text-sm font-medium">Change password</p>
+                    <div className="flex flex-col gap-3">
+                        {[
+                            { label: 'Current password', value: currentPwd, set: setCurrentPwd },
+                            { label: 'New password',     value: newPwd,     set: setNewPwd },
+                            { label: 'Confirm new',      value: confirmPwd, set: setConfirmPwd },
+                        ].map(f => (
+                            <div key={f.label} className="flex flex-col gap-1.5">
+                                <label className="text-xs text-zinc-500">{f.label}</label>
+                                <PasswordInput value={f.value} onChange={f.set} />
+                            </div>
+                        ))}
+                        {pwdMsg && <p className={`text-xs ${pwdMsg.ok ? 'text-emerald-400' : 'text-red-400'}`}>{pwdMsg.text}</p>}
+                        <button
+                            onClick={handlePasswordChange}
+                            disabled={pwdLoading || !currentPwd || !newPwd || !confirmPwd}
+                            className="bg-rose-500 hover:bg-rose-400 disabled:opacity-40 text-white text-sm font-semibold py-2 rounded-lg transition-colors"
+                        >
+                            {pwdLoading ? 'Updating...' : 'Update password'}
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            {/* session */}
             <section className="flex flex-col gap-4">
                 <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Session</h2>
                 <div className="bg-zinc-900 border border-white/5 rounded-xl p-5">
-                    <button
-                        onClick={logout}
-                        className="text-sm text-red-400 hover:text-red-300 font-medium transition-colors"
-                    >
+                    <button onClick={() => useAuthStore.getState().logout()} className="text-sm text-red-400 hover:text-red-300 font-medium transition-colors">
                         Sign out of all devices
                     </button>
                 </div>

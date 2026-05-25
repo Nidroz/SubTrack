@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import PasswordInput from "../components/ui/PasswordInput.tsx";
 
 export default function Login() {
     const [username, setUsername] = useState('')
@@ -53,14 +54,10 @@ export default function Login() {
 
                     <div className="flex flex-col gap-1.5">
                         <label className="text-xs font-medium text-zinc-400">Password</label>
-                        <input
-                            type="password"
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={e => setPassword(e.target.value)}
+                        <PasswordInput
+                            onChange={setPassword}
                             onKeyDown={e => e.key === 'Enter' && handleSubmit()}
-                            className="bg-zinc-950 border border-white/10 rounded-lg px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none focus:border-white/20 transition-colors"
-                        />
+                            value={password} />
                     </div>
                     <div className="flex justify-end">
                         <Link to="/forgot-password" className="text-xs text-zinc-500 hover:text-rose-400 transition-colors">

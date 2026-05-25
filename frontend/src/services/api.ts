@@ -144,3 +144,6 @@ export const clearMediaCache = () =>
 
 export const getMediaCacheSize = () =>
     api.get('/admin/cache/size').then(r => r.data)
+
+export const updateProfile = (data: { username?: string; avatarBase64?: string }) =>
+    api.patch('/profile', data).then(r => r.data)

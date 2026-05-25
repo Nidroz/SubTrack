@@ -2,6 +2,7 @@ package com.subtrack.service;
 
 import com.subtrack.dto.ChangePasswordRequest;
 import com.subtrack.dto.ProfileStatsResponse;
+import com.subtrack.dto.ProfileUpdateRequest;
 import com.subtrack.dto.UserProfileResponse;
 import com.subtrack.entity.MediaType;
 import com.subtrack.entity.User;
@@ -26,7 +27,7 @@ public class ProfileService {
 
   public UserProfileResponse getProfile(Long userId) {
     User user = userRepository.findById(userId).orElseThrow();
-    return new UserProfileResponse(user.getId(), user.getUsername(), user.getEmail(), user.getCreatedAt());
+    return new UserProfileResponse(user.getId(), user.getUsername(), user.getEmail(), user.getCreatedAt(), user.getAvatarUrl());
   }
 
   public ProfileStatsResponse getStats(Long userId) {
@@ -81,5 +82,23 @@ public class ProfileService {
 
   private long count(List<UserMedia> list, WatchStatus status) {
     return list.stream().filter(entry -> entry.getStatus() == status).count();
+  }
+
+  public void updateProfile(Long userId, ProfileUpdateRequest profileUpdateRequest) {
+    User user = userRepository.findById(userId).orElseThrow();
+    if (profileUpdateRequest.getUsername() != null && !profileUpdateRequest.getUsername().isBlank()) {
+      // check username not taken by another user
+      userRepository.findByUsername(profileUpdateRequest.getUsername()).ifPresent(existing -> {
+        if (!existing.getId().equals(userId)) {
+          throw new IllegalArgumentException("Username already taken");
+        }
+      });
+      user.setUsername(profileUpdateRequest.getUsername());
+    }
+    if (profileUpdateRequest.getAvatarBase64() != null && !profileUpdateRequest.getAvatarBase64().isBlank()) {
+      // store as data URL directly — no external service needed
+      user.setAvatarUrl(profileUpdateRequest.getAvatarBase64());
+    }
+    userRepository.save(user);
   }
 }

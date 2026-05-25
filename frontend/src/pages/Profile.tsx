@@ -1,15 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { getProfile, getProfileStats, changePassword, changeEmail, updateProfile } from '../services/api'
 import { useAuthStore } from '../store/authStore'
 import PasswordInput from '../components/ui/PasswordInput'
-
-interface Profile {
-    id: number
-    username: string
-    email: string
-    createdAt: string
-    avatarUrl?: string
-}
+import AvatarCropper from '../components/ui/AvatarCropper'
+import { Profile } from '../types'
 
 interface ProfileStats {
     total: number
@@ -37,65 +31,60 @@ function formatTime(minutes: number) {
     if (minutes < 60) return `${minutes}m`
     const h = Math.floor(minutes / 60)
     if (h < 24) return `${h}h`
-    const d = Math.floor(h / 24)
-    return `${d}d ${h % 24}h`
+    return `${Math.floor(h / 24)}d ${h % 24}h`
 }
 
 export default function Profile() {
-    const { username, setUsername } = useAuthStore()
+    const { setUsername } = useAuthStore()
     const [profile, setProfile] = useState<Profile | null>(null)
     const [stats, setStats] = useState<ProfileStats | null>(null)
     const [loading, setLoading] = useState(true)
 
-    // edit profile state
+    // edit mode
+    const [editing, setEditing] = useState(false)
     const [editUsername, setEditUsername] = useState('')
     const [editLoading, setEditLoading] = useState(false)
     const [editMsg, setEditMsg] = useState<{ text: string; ok: boolean } | null>(null)
+
+    // avatar flow: idle → rawSrc (choose) → cropSrc (cropper) or pendingAvatar (direct)
     const avatarInputRef = useRef<HTMLInputElement>(null)
-    const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
+    const [rawSrc, setRawSrc] = useState<string | null>(null)
+    const [cropSrc, setCropSrc] = useState<string | null>(null)
     const [pendingAvatar, setPendingAvatar] = useState<string | null>(null)
 
-    // password state
+    // password
     const [currentPwd, setCurrentPwd] = useState('')
     const [newPwd, setNewPwd] = useState('')
     const [confirmPwd, setConfirmPwd] = useState('')
     const [pwdMsg, setPwdMsg] = useState<{ text: string; ok: boolean } | null>(null)
     const [pwdLoading, setPwdLoading] = useState(false)
 
-    // email state
+    // email
     const [newEmail, setNewEmail] = useState('')
     const [emailMsg, setEmailMsg] = useState<{ text: string; ok: boolean } | null>(null)
     const [emailLoading, setEmailLoading] = useState(false)
 
     const load = async () => {
-        const [p, s] = await Promise.all([getProfile(), getProfileStats()])
+        const [p, s] = await Promise.all([getProfile(), getProfileStats()]) as [Profile, ProfileStats]
         setProfile(p)
         setStats(s)
         setEditUsername(p.username)
-        if (p.avatarUrl) setAvatarPreview(p.avatarUrl)
         setLoading(false)
     }
 
     useEffect(() => { load() }, [])
 
-    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
-        // limit to 1MB
-        if (file.size > 1024 * 1024) {
-            setEditMsg({ text: 'Image too large (max 1MB)', ok: false })
-            return
-        }
+        if (file.size > 5 * 1024 * 1024) { setEditMsg({ text: 'Image too large (max 5MB)', ok: false }); return }
         const reader = new FileReader()
-        reader.onload = () => {
-            const result = reader.result as string
-            setAvatarPreview(result)
-            setPendingAvatar(result)
-        }
+        reader.onload = () => setRawSrc(reader.result as string)
         reader.readAsDataURL(file)
+        e.target.value = ''
     }
 
-    const handleProfileUpdate = async () => {
+    const handleProfileSave = async () => {
         setEditLoading(true)
         setEditMsg(null)
         try {
@@ -103,12 +92,9 @@ export default function Profile() {
                 username: editUsername !== profile?.username ? editUsername : undefined,
                 avatarBase64: pendingAvatar ?? undefined,
             })
-            // update username in authStore if changed
-            if (editUsername !== profile?.username) {
-                setUsername(editUsername)
-                localStorage.setItem('username', editUsername)
-            }
+            if (editUsername !== profile?.username) setUsername(editUsername)
             setPendingAvatar(null)
+            setEditing(false)
             setEditMsg({ text: 'Profile updated', ok: true })
             load()
         } catch (e: any) {
@@ -118,19 +104,23 @@ export default function Profile() {
         }
     }
 
+    const handleRemoveAvatar = async () => {
+        await updateProfile({ avatarBase64: '' })
+        setPendingAvatar(null)
+        load()
+    }
+
     const handlePasswordChange = async () => {
         if (newPwd !== confirmPwd) { setPwdMsg({ text: 'Passwords do not match', ok: false }); return }
         if (newPwd.length < 6) { setPwdMsg({ text: 'Min 6 characters', ok: false }); return }
         setPwdLoading(true)
         try {
             await changePassword(currentPwd, newPwd)
-            setPwdMsg({ text: 'Password updated successfully', ok: true })
+            setPwdMsg({ text: 'Password updated', ok: true })
             setCurrentPwd(''); setNewPwd(''); setConfirmPwd('')
         } catch (e: any) {
             setPwdMsg({ text: e?.response?.data?.message ?? 'Failed', ok: false })
-        } finally {
-            setPwdLoading(false)
-        }
+        } finally { setPwdLoading(false) }
     }
 
     const handleEmailChange = async () => {
@@ -142,20 +132,19 @@ export default function Profile() {
             setNewEmail('')
         } catch (e: any) {
             setEmailMsg({ text: e?.response?.data?.message ?? 'Failed', ok: false })
-        } finally {
-            setEmailLoading(false)
-        }
+        } finally { setEmailLoading(false) }
     }
 
     if (loading) return <p className="text-zinc-500 text-sm">Loading...</p>
 
-    const scoreEntries = stats
-        ? Object.entries(stats.scoreDistribution).sort(([a], [b]) => Number(a) - Number(b))
-        : []
-    const maxScore = Math.max(...scoreEntries.map(([, v]) => v), 1)
+    const avatarSrc = pendingAvatar !== null ? pendingAvatar : profile?.avatarUrl
     const joinDate = profile
         ? new Date(profile.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
         : ''
+    const scoreEntries = stats
+        ? (Object.entries(stats.scoreDistribution) as [string, number][]).sort(([a], [b]) => Number(a) - Number(b))
+        : []
+    const maxScore = Math.max(...scoreEntries.map(([, v]) => v), 1)
 
     return (
         <div className="flex flex-col gap-10 max-w-2xl">
@@ -164,67 +153,129 @@ export default function Profile() {
                 <p className="text-zinc-500 text-sm mt-1">Your account and stats</p>
             </header>
 
-            {/* account + edit */}
+            {/* account card */}
             <section className="flex flex-col gap-4">
                 <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Account</h2>
-                <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-5">
-                    {/* avatar + name row */}
+                <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-4">
+
+                    {/* read-only view */}
                     <div className="flex items-center gap-4">
-                        {/* avatar */}
-                        <div
-                            className="relative w-16 h-16 rounded-full overflow-hidden cursor-pointer group shrink-0"
-                            onClick={() => avatarInputRef.current?.click()}
-                        >
-                            {avatarPreview ? (
-                                <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+                        <div className="relative w-14 h-14 shrink-0">
+                            {avatarSrc ? (
+                                <img src={avatarSrc} alt="avatar" className="w-14 h-14 rounded-full object-cover border border-white/10" />
                             ) : (
-                                <div className="w-full h-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 font-black text-2xl">
+                                <div className="w-14 h-14 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 font-black text-xl">
                                     {profile?.username[0].toUpperCase()}
                                 </div>
                             )}
-                            {/* hover overlay */}
-                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                                    <circle cx="12" cy="13" r="4"/>
-                                </svg>
-                            </div>
-                            <input
-                                ref={avatarInputRef}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={handleAvatarChange}
-                            />
                         </div>
-
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs text-zinc-500 mb-1">Member since {joinDate}</p>
-                            <p className="text-xs text-zinc-600">{profile?.email}</p>
+                            <p className="font-bold text-base truncate">{profile?.username}</p>
+                            <p className="text-xs text-zinc-500">{profile?.email}</p>
+                            <p className="text-xs text-zinc-600 mt-0.5">Member since {joinDate}</p>
                         </div>
+                        <button
+                            onClick={() => { setEditing(e => !e); setEditMsg(null); setRawSrc(null); setCropSrc(null) }}
+                            className={`p-2 rounded-lg border transition-colors ${
+                                editing
+                                    ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                                    : 'bg-white/5 border-white/5 hover:border-white/10 text-zinc-500 hover:text-zinc-300'
+                            }`}
+                            title="Edit profile"
+                        >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </button>
                     </div>
 
-                    {/* username edit */}
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-xs text-zinc-500">Username</label>
-                        <input
-                            value={editUsername}
-                            onChange={e => setEditUsername(e.target.value)}
-                            className="bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20 transition-colors"
-                        />
-                    </div>
+                    {/* edit section */}
+                    {editing && (
+                        <div className="flex flex-col gap-4 pt-2 border-t border-white/5">
 
-                    {editMsg && (
-                        <p className={`text-xs ${editMsg.ok ? 'text-emerald-400' : 'text-red-400'}`}>{editMsg.text}</p>
+                            {/* avatar flow */}
+                            {cropSrc ? (
+                                // step 3 — cropper
+                                <AvatarCropper
+                                    src={cropSrc}
+                                    onConfirm={cropped => { setPendingAvatar(cropped); setCropSrc(null) }}
+                                    onCancel={() => setCropSrc(null)}
+                                />
+                            ) : rawSrc ? (
+                                // step 2 — choose: use as is or crop
+                                <div className="flex flex-col gap-3">
+                                    <p className="text-xs text-zinc-500">Use this image directly or crop it first?</p>
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => { setPendingAvatar(rawSrc); setRawSrc(null) }}
+                                            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold py-2 rounded-lg transition-colors"
+                                        >
+                                            Use as is (default)
+                                        </button>
+                                        <button
+                                            onClick={() => { setCropSrc(rawSrc); setRawSrc(null) }}
+                                            className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-sm font-semibold py-2 rounded-lg transition-colors"
+                                        >
+                                            Crop & zoom
+                                        </button>
+                                    </div>
+                                    <button onClick={() => setRawSrc(null)} className="text-xs text-zinc-600 hover:text-zinc-400 text-center transition-colors">
+                                        Cancel
+                                    </button>
+                                </div>
+                            ) : (
+                                // step 1 — upload button
+                                <div className="flex items-center gap-3">
+                                    <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
+                                    <button
+                                        onClick={() => avatarInputRef.current?.click()}
+                                        className="text-xs bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-400 hover:text-zinc-200 px-3 py-2 rounded-lg transition-colors"
+                                    >
+                                        {avatarSrc ? 'Change photo' : 'Upload photo'}
+                                    </button>
+                                    {avatarSrc && (
+                                        <button onClick={handleRemoveAvatar} className="text-xs text-zinc-600 hover:text-red-400 transition-colors">
+                                            Remove photo
+                                        </button>
+                                    )}
+                                    {pendingAvatar && <span className="text-xs text-emerald-400">New photo ready ✓</span>}
+                                </div>
+                            )}
+
+                            {/* username + save — hidden during crop */}
+                            {!cropSrc && !rawSrc && (
+                                <>
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-xs text-zinc-500">Username</label>
+                                        <input
+                                            value={editUsername}
+                                            onChange={e => setEditUsername(e.target.value)}
+                                            className="bg-zinc-950 border border-white/10 rounded-lg px-3 py-2 text-sm text-zinc-100 outline-none focus:border-white/20 transition-colors"
+                                        />
+                                    </div>
+                                    {editMsg && <p className={`text-xs ${editMsg.ok ? 'text-emerald-400' : 'text-red-400'}`}>{editMsg.text}</p>}
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => { setEditing(false); setEditMsg(null); setPendingAvatar(null) }}
+                                            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold py-2 rounded-lg transition-colors"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            onClick={handleProfileSave}
+                                            disabled={editLoading || (editUsername === profile?.username && !pendingAvatar)}
+                                            className="flex-1 bg-rose-500 hover:bg-rose-400 disabled:opacity-40 text-white text-sm font-semibold py-2 rounded-lg transition-colors"
+                                        >
+                                            {editLoading ? 'Saving...' : 'Save changes'}
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
                     )}
 
-                    <button
-                        onClick={handleProfileUpdate}
-                        disabled={editLoading || (editUsername === profile?.username && !pendingAvatar)}
-                        className="bg-rose-500 hover:bg-rose-400 disabled:opacity-40 text-white text-sm font-semibold py-2 rounded-lg transition-colors"
-                    >
-                        {editLoading ? 'Saving...' : 'Save changes'}
-                    </button>
+                    {!editing && editMsg?.ok && <p className="text-xs text-emerald-400">{editMsg.text}</p>}
                 </div>
             </section>
 
@@ -233,24 +284,17 @@ export default function Profile() {
                 <section className="flex flex-col gap-4">
                     <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Stats</h2>
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-zinc-900 border border-white/5 rounded-xl p-4">
-                            <p className="text-xs text-zinc-500 mb-1">Anime tracked</p>
-                            <p className="text-2xl font-black text-rose-400">{stats.totalAnime}</p>
-                        </div>
-                        <div className="bg-zinc-900 border border-white/5 rounded-xl p-4">
-                            <p className="text-xs text-zinc-500 mb-1">Manga tracked</p>
-                            <p className="text-2xl font-black text-violet-400">{stats.totalManga}</p>
-                        </div>
-                        <div className="bg-zinc-900 border border-white/5 rounded-xl p-4">
-                            <p className="text-xs text-zinc-500 mb-1">Avg score</p>
-                            <p className="text-2xl font-black text-yellow-400">
-                                {stats.avgScore ? stats.avgScore.toFixed(1) : '—'}
-                            </p>
-                        </div>
-                        <div className="bg-zinc-900 border border-white/5 rounded-xl p-4">
-                            <p className="text-xs text-zinc-500 mb-1">Time watched</p>
-                            <p className="text-2xl font-black text-emerald-400">{formatTime(stats.estimatedMinutes)}</p>
-                        </div>
+                        {[
+                            { label: 'Anime tracked', value: stats.totalAnime, color: 'text-rose-400' },
+                            { label: 'Manga tracked', value: stats.totalManga, color: 'text-violet-400' },
+                            { label: 'Avg score', value: stats.avgScore ? stats.avgScore.toFixed(1) : '—', color: 'text-yellow-400' },
+                            { label: 'Time watched', value: formatTime(stats.estimatedMinutes), color: 'text-emerald-400' },
+                        ].map(s => (
+                            <div key={s.label} className="bg-zinc-900 border border-white/5 rounded-xl p-4">
+                                <p className="text-xs text-zinc-500 mb-1">{s.label}</p>
+                                <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+                            </div>
+                        ))}
                     </div>
 
                     <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-3">
@@ -280,7 +324,7 @@ export default function Profile() {
                                     const height = count ? Math.max((count / maxScore) * 100, 8) : 0
                                     return (
                                         <div key={score} className="flex flex-col items-center gap-1 flex-1">
-                                            <div className="w-full rounded-sm bg-rose-500/60 transition-all" style={{ height: `${height}%`, minHeight: count ? '4px' : '0' }} />
+                                            <div className="w-full rounded-sm bg-rose-500/60" style={{ height: `${height}%`, minHeight: count ? '4px' : '0' }} />
                                             <span className="text-[10px] text-zinc-600">{score}</span>
                                         </div>
                                     )
@@ -291,7 +335,7 @@ export default function Profile() {
                 </section>
             )}
 
-            {/* email change */}
+            {/* email */}
             <section className="flex flex-col gap-4">
                 <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Email</h2>
                 <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-4">
@@ -322,7 +366,7 @@ export default function Profile() {
                 </div>
             </section>
 
-            {/* password */}
+            {/* security */}
             <section className="flex flex-col gap-4">
                 <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Security</h2>
                 <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-4">
@@ -354,7 +398,10 @@ export default function Profile() {
             <section className="flex flex-col gap-4">
                 <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Session</h2>
                 <div className="bg-zinc-900 border border-white/5 rounded-xl p-5">
-                    <button onClick={() => useAuthStore.getState().logout()} className="text-sm text-red-400 hover:text-red-300 font-medium transition-colors">
+                    <button
+                        onClick={() => useAuthStore.getState().logout()}
+                        className="text-sm text-red-400 hover:text-red-300 font-medium transition-colors"
+                    >
                         Sign out of all devices
                     </button>
                 </div>

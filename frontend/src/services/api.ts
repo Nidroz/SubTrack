@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
+import type { Profile } from '../types'
 
 export interface AuthResponse {
     accessToken: string
@@ -115,13 +116,16 @@ export const getMyRecommendations = () =>
 
 // ── profile ───────────────────────────────────────────────────────────────
 export const getProfile = () =>
-    api.get('/profile').then(r => r.data)
+    api.get<Profile>('/profile').then(r => r.data)
 
 export const getProfileStats = () =>
     api.get('/profile/stats').then(r => r.data)
 
 export const changePassword = (currentPassword: string, newPassword: string) =>
     api.patch('/profile/password', { currentPassword, newPassword }).then(r => r.data)
+
+export const updateProfile = (data: { username?: string; avatarBase64?: string }) =>
+    api.patch('/profile', data).then(r => r.data)
 
 // ── admin ─────────────────────────────────────────────────────────────────
 export const getAdminUsers = () =>
@@ -144,6 +148,3 @@ export const clearMediaCache = () =>
 
 export const getMediaCacheSize = () =>
     api.get('/admin/cache/size').then(r => r.data)
-
-export const updateProfile = (data: { username?: string; avatarBase64?: string }) =>
-    api.patch('/profile', data).then(r => r.data)

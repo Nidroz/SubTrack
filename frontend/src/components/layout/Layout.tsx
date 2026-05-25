@@ -1,5 +1,8 @@
 import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
+import { useEffect, useState } from 'react'
+import { getProfile } from '../../services/api'
+import { Profile} from "../../types";
 
 const navLink = ({ isActive }: { isActive: boolean }) =>
     `flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -11,6 +14,11 @@ const navLink = ({ isActive }: { isActive: boolean }) =>
 export default function Layout() {
     const { username, role, logout } = useAuthStore()
     const navigate = useNavigate()
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
+    useEffect(() => {
+        getProfile().then((p: Profile) => setAvatarUrl(p.avatarUrl ?? null)).catch(() => {})
+    }, [username]) // re-fetch when username changes (profile update)
 
     return (
         <div className="flex min-h-screen bg-zinc-950 text-zinc-100">
@@ -26,7 +34,6 @@ export default function Layout() {
                     <NavLink to="/search" className={navLink}>Search</NavLink>
                     <NavLink to="/discover" className={navLink}>Discover</NavLink>
                     <NavLink to="/list" className={navLink}>My List</NavLink>
-                    {/* admin link — only visible for admins */}
                     {role === 'ADMIN' && (
                         <NavLink to="/admin" className={navLink}>
                             <span className="flex items-center gap-2">
@@ -38,12 +45,20 @@ export default function Layout() {
                 </nav>
 
                 <div className="border-t border-white/5 pt-4 flex flex-col gap-1">
-                    {/* profile link */}
+                    {/* profile link with avatar */}
                     <NavLink to="/profile" className={navLink}>
                         <div className="flex items-center gap-2">
-                            <div className="w-5 h-5 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 text-xs font-black shrink-0">
-                                {username?.[0]?.toUpperCase()}
-                            </div>
+                            {avatarUrl ? (
+                                <img
+                                    src={avatarUrl}
+                                    alt="avatar"
+                                    className="w-5 h-5 rounded-full object-cover shrink-0"
+                                />
+                            ) : (
+                                <div className="w-5 h-5 rounded-full bg-rose-500/20 flex items-center justify-center text-rose-400 text-xs font-black shrink-0">
+                                    {username?.[0]?.toUpperCase()}
+                                </div>
+                            )}
                             <span className="truncate">{username}</span>
                         </div>
                     </NavLink>

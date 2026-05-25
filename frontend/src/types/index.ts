@@ -49,3 +49,11 @@ export interface Stats {
     watching: number
     avgScore?: number
 }
+
+export interface Profile {
+    id: number
+    username: string
+    email: string
+    createdAt: string
+    avatarUrl?: string
+}

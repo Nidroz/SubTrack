@@ -20,8 +20,6 @@ const STATUS_COLORS: Record<WatchStatus, string> = {
     ON_HOLD:       'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
 }
 
-const PAGE_SIZE = 15
-
 export default function MyList() {
     const navigate = useNavigate()
     const { entries, loading, totalPages, totalElements, fetchList, removeEntry } = useListStore()
@@ -34,18 +32,21 @@ export default function MyList() {
     const [page, setPage]                 = useState(0)
     const [editing, setEditing]           = useState<number | null>(null)
 
+    const [pageSize, setPageSize] = useState(15)
+    const [jumpPage, setJumpPage] = useState('')
+
     const params = {
         ...(mediaFilter !== 'all' && { mediaType: mediaFilter }),
         ...(statusFilter !== 'all' && { status: statusFilter }),
         sortBy,
         sortDir,
         page,
-        size: PAGE_SIZE,
+        size: pageSize,
     }
 
     useEffect(() => {
         fetchList(params)
-    }, [mediaFilter, statusFilter, sortBy, sortDir, page])
+    }, [mediaFilter, statusFilter, sortBy, sortDir, page, pageSize])
 
     // reset to page 0 when filters change
     useEffect(() => {
@@ -222,37 +223,88 @@ export default function MyList() {
             )}
 
             {/* pagination */}
-            {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 pt-2">
-                    <button
-                        onClick={() => setPage(p => Math.max(0, p - 1))}
-                        disabled={page === 0}
-                        className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors"
-                    >
-                        ←
-                    </button>
-
-                    {Array.from({ length: totalPages }, (_, i) => i).map(i => (
-                        <button
-                            key={i}
-                            onClick={() => setPage(i)}
-                            className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
-                                i === page
-                                    ? 'bg-rose-500 text-white'
-                                    : 'bg-zinc-900 border border-white/5 text-zinc-400 hover:text-zinc-200'
-                            }`}
+            {totalPages > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+                    {/* page size selector */}
+                    <div className="flex items-center gap-2 text-xs text-zinc-500">
+                        <span>Show</span>
+                        <select
+                            value={pageSize}
+                            onChange={e => { setPageSize(Number(e.target.value)); setPage(0) }}
+                            className="bg-zinc-900 border border-white/5 rounded-lg px-2 py-1.5 text-zinc-400 outline-none cursor-pointer"
                         >
-                            {i + 1}
-                        </button>
-                    ))}
+                            {[15, 30, 50].map(n => (
+                                <option key={n} value={n}>{n}</option>
+                            ))}
+                        </select>
+                        <span>per page · {totalElements} total</span>
+                    </div>
 
-                    <button
-                        onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                        disabled={page >= totalPages - 1}
-                        className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors"
-                    >
-                        →
-                    </button>
+                    {/* page nav */}
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setPage(p => Math.max(0, p - 1))}
+                            disabled={page === 0}
+                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors"
+                        >←</button>
+
+                        {/* show max 5 page buttons around current */}
+                        {Array.from({ length: totalPages }, (_, i) => i)
+                            .filter(i => i === 0 || i === totalPages - 1 || Math.abs(i - page) <= 2)
+                            .reduce<(number | '...')[]>((acc, i, idx, arr) => {
+                                if (idx > 0 && (i as number) - (arr[idx - 1] as number) > 1) acc.push('...')
+                                acc.push(i)
+                                return acc
+                            }, [])
+                            .map((item, idx) =>
+                                item === '...' ? (
+                                    <span key={`ellipsis-${idx}`} className="text-zinc-600 text-sm px-1">…</span>
+                                ) : (
+                                    <button
+                                        key={item}
+                                        onClick={() => setPage(item as number)}
+                                        className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
+                                            item === page
+                                                ? 'bg-rose-500 text-white'
+                                                : 'bg-zinc-900 border border-white/5 text-zinc-400 hover:text-zinc-200'
+                                        }`}
+                                    >
+                                        {(item as number) + 1}
+                                    </button>
+                                )
+                            )
+                        }
+
+                        <button
+                            onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                            disabled={page >= totalPages - 1}
+                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors"
+                        >→</button>
+                    </div>
+
+                    {/* jump to page */}
+                    <div className="flex items-center gap-2 text-xs text-zinc-500">
+                        <span>Go to</span>
+                        <input
+                            type="number"
+                            min={1}
+                            max={totalPages}
+                            value={jumpPage}
+                            onChange={e => setJumpPage(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    const p = parseInt(jumpPage) - 1
+                                    if (!isNaN(p) && p >= 0 && p < totalPages) {
+                                        setPage(p)
+                                        setJumpPage('')
+                                    }
+                                }
+                            }}
+                            placeholder={String(page + 1)}
+                            className="w-14 bg-zinc-900 border border-white/5 rounded-lg px-2 py-1.5 text-zinc-300 outline-none focus:border-white/20 text-center"
+                        />
+                        <span>/ {totalPages}</span>
+                    </div>
                 </div>
             )}
         </div>

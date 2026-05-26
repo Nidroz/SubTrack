@@ -9,11 +9,11 @@ import com.subtrack.entity.MediaType;
  */
 public interface MediaProvider {
   MediaType supports(); // media type this provider handles.
-  JsonNode search(String query, int page);
+  JsonNode search(String query, int page, int limit);
   JsonNode getById(Long id);
   JsonNode getEpisodes(Long id);
   JsonNode getRandom();
-  JsonNode getTopAiring(int page);
-  JsonNode getTopPopular(int page);
+  JsonNode getTopAiring(int page, int limit);
+  JsonNode getTopPopular(int page, int limit);
   JsonNode getRecommendations(Long id);
 }

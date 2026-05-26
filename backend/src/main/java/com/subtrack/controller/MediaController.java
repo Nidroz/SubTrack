@@ -20,9 +20,10 @@ public class MediaController {
   public JsonNode search(
           @RequestParam MediaType type,
           @RequestParam String query,
-          @RequestParam(defaultValue = "1") int page
+          @RequestParam(defaultValue = "1") int page,
+          @RequestParam(defaultValue = "12") int limit
   ) {
-    return mediaService.search(type, query, page);
+    return mediaService.search(type, query, page, limit);
   }
 
   @GetMapping("/{type}/{id}")
@@ -51,17 +52,19 @@ public class MediaController {
   @GetMapping("/top/airing")
   public JsonNode getTopAiring(
           @RequestParam MediaType type,
-          @RequestParam(defaultValue = "1") int page
+          @RequestParam(defaultValue = "1") int page,
+          @RequestParam(defaultValue = "12") int limit
   ) {
-    return mediaService.getTopAiring(type, page);
+    return mediaService.getTopAiring(type, page, limit);
   }
 
   @GetMapping("/top/popular")
   public JsonNode getTopPopular(
           @RequestParam MediaType type,
-          @RequestParam(defaultValue = "1") int page
+          @RequestParam(defaultValue = "1") int page,
+          @RequestParam(defaultValue = "12") int limit
   ) {
-    return mediaService.getTopPopular(type, page);
+    return mediaService.getTopPopular(type, page, limit);
   }
 
   @GetMapping("/{type}/{id}/recommendations")
@@ -73,9 +76,10 @@ public class MediaController {
   }
 
   @GetMapping("/recommendations/me")
-  public JsonNode getMyRecommendations(@AuthenticationPrincipal UserDetails userDetails) {
-    Long userId = userRepository.findByUsername(userDetails.getUsername())
-            .orElseThrow().getId();
-    return mediaService.getListRecommendations(userId);
+  public JsonNode getMyRecommendations(
+          @AuthenticationPrincipal UserDetails userDetails,
+          @RequestParam MediaType type) {
+    Long userId = userRepository.findByUsername(userDetails.getUsername()).orElseThrow().getId();
+    return mediaService.getListRecommendations(userId, type);
   }
 }

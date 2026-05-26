@@ -1,6 +1,7 @@
 package com.subtrack.media;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.subtrack.config.CacheConfig;
 import com.subtrack.entity.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -12,6 +13,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 @Component
 public class JikanAnimeProvider extends AbstractMediaProvider {
   private static final String BASE = "https://api.jikan.moe/v4";
+  private static final int MAX_LIMIT_JIKAN_PROVIDERS = CacheConfig.getMaxLimitJikanProviders(); // Jikan max limit per page for search results
 
   public JikanAnimeProvider(WebClient webClient) {
     super(webClient);
@@ -23,12 +25,12 @@ public class JikanAnimeProvider extends AbstractMediaProvider {
   }
 
   @Override
-  public JsonNode search(String query, int page) {
+  public JsonNode search(String query, int page, int limit) {
     String url = UriComponentsBuilder.fromHttpUrl(BASE)
             .path("/anime")
             .queryParam("q", query)
             .queryParam("page", page)
-            .queryParam("limit", 12)
+            .queryParam("limit", Math.min(limit, MAX_LIMIT_JIKAN_PROVIDERS))
             .toUriString();
     return get(url);
   }
@@ -49,23 +51,23 @@ public class JikanAnimeProvider extends AbstractMediaProvider {
   }
 
   @Override
-  public JsonNode getTopAiring(int page) {
+  public JsonNode getTopAiring(int page, int limit) {
     String url = UriComponentsBuilder.fromHttpUrl(BASE)
             .path("/top/anime")
             .queryParam("filter", "airing")
             .queryParam("page", page)
-            .queryParam("limit", 12)
+            .queryParam("limit", Math.min(limit, MAX_LIMIT_JIKAN_PROVIDERS))
             .toUriString();
     return get(url);
   }
 
   @Override
-  public JsonNode getTopPopular(int page) {
+  public JsonNode getTopPopular(int page, int limit) {
     String url = UriComponentsBuilder.fromHttpUrl(BASE)
             .path("/top/anime")
             .queryParam("filter", "bypopularity")
             .queryParam("page", page)
-            .queryParam("limit", 12)
+            .queryParam("limit", Math.min(limit, MAX_LIMIT_JIKAN_PROVIDERS))
             .toUriString();
     return get(url);
   }

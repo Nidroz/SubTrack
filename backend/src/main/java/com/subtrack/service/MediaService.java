@@ -11,6 +11,9 @@ import com.subtrack.media.MediaProviderRegistry;
 import com.subtrack.repository.MediaCacheRepository;
 import com.subtrack.repository.UserMediaRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -27,8 +30,9 @@ public class MediaService {
   private final MediaCacheRepository mediaCacheRepository;
   private final UserMediaRepository userMediaRepository;
 
-  public JsonNode search(MediaType mediaType, String query, int page) {
-    return registry.getProvider(mediaType).search(query, page);
+  @Cacheable(value = "media-search", key = "#mediaType + ':' + #query + ':' + #page + ':' + #limit")
+  public JsonNode search(MediaType mediaType, String query, int page, int limit) {
+    return registry.getProvider(mediaType).search(query, page, limit);
   }
 
   public JsonNode getById(MediaType mediaType, Long id) {
@@ -48,34 +52,37 @@ public class MediaService {
     return registry.getProvider(mediaType).getEpisodes(id);
   }
 
+  @Cacheable(value = "media-random", key = "#mediaType")
   public JsonNode getRandom(MediaType mediaType) {
     return registry.getProvider(mediaType).getRandom();
   }
 
-  public JsonNode getTopAiring(MediaType mediaType, int page) {
-    return registry.getProvider(mediaType).getTopAiring(page);
+  @Cacheable(value = "media-top-airing", key = "#mediaType + ':' + #page + ':' + #limit")
+  public JsonNode getTopAiring(MediaType mediaType, int page, int limit) {
+    return registry.getProvider(mediaType).getTopAiring(page, limit);
   }
 
-  public JsonNode getTopPopular(MediaType mediaType, int page) {
-    return registry.getProvider(mediaType).getTopPopular(page);
+  @Cacheable(value = "media-top-popular", key = "#mediaType + ':' + #page + ':' + #limit")
+  public JsonNode getTopPopular(MediaType mediaType, int page, int limit) {
+    return registry.getProvider(mediaType).getTopPopular(page, limit);
   }
 
   public JsonNode getRecommendations(MediaType mediaType, Long id) {
     return registry.getProvider(mediaType).getRecommendations(id);
   }
 
-  public JsonNode getListRecommendations(Long userId) {
-    // pick up to 3 random entries from the user's list and fetch their recommendations
-    List<UserMedia> entries =  userMediaRepository.findByUserIdOrderByUpdatedAtDesc(userId);
-    if (entries.isEmpty()) return new ObjectMapper().createObjectNode();
-    // pick at most 3 random entries
-    List<UserMedia> randomEntries = entries.stream()
+  public JsonNode getListRecommendations(Long userId, MediaType type) {
+    List<UserMedia> entries = userMediaRepository.findByUserIdOrderByUpdatedAtDesc(userId)
+            .stream()
+            .filter(entry -> entry.getMediaType() == type)  // filter by requested type
             .limit(3)
             .toList();
 
+    if (entries.isEmpty()) return new ObjectMapper().createObjectNode();
+
     ObjectMapper mapper = new ObjectMapper();
     ArrayNode combined = mapper.createArrayNode();
-    for (UserMedia entry : randomEntries) {
+    for (UserMedia entry : entries) {
       JsonNode recs = registry.getProvider(entry.getMediaType()).getRecommendations(entry.getMediaId());
       if (recs != null && recs.has("data")) {
         recs.get("data").forEach(r -> {
@@ -88,6 +95,10 @@ public class MediaService {
     return result;
   }
 
+  // evict random cache every 5 min so Surprise me stays fresh
+  @Scheduled(fixedDelay = 5 * 60 * 1000)
+  @CacheEvict(value = "media-random", allEntries = true)
+  public void evictRandomCache() {}
 
   private void cacheMedia(JsonNode data, MediaType mediaType) {
     MediaCache cache = new MediaCache();

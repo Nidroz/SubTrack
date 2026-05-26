@@ -1,6 +1,6 @@
 import axios from 'axios'
 import { useAuthStore } from '../store/authStore'
-import type { Profile } from '../types'
+import type {JikanResponse, MediaResult, Profile} from '../types'
 
 export interface AuthResponse {
     accessToken: string
@@ -67,8 +67,8 @@ export const changeEmail = (newEmail: string) =>
     api.post('/profile/email/change', { newEmail }).then(r => r.data)
 
 // ── media ─────────────────────────────────────────────────────────────────
-export const searchMedia = (type: 'ANIME' | 'MANGA', query: string, page = 1) =>
-    api.get('/media/search', { params: { type, query, page } }).then(r => r.data)
+export const searchMedia = (type: 'ANIME' | 'MANGA', query: string, page = 1, limit = 12) =>
+    api.get<JikanResponse<MediaResult>>('/media/search', { params: { type, query, page, limit } }).then(r => r.data)
 
 export const getMediaById = (type: 'ANIME' | 'MANGA', id: number) =>
     api.get(`/media/${type}/${id}`).then(r => r.data)
@@ -102,17 +102,17 @@ export const getStats = () =>
 export const getRandom = (type: 'ANIME' | 'MANGA') =>
     api.get('/media/random', { params: { type } }).then(r => r.data)
 
-export const getTopAiring = (type: 'ANIME' | 'MANGA', page = 1) =>
-    api.get('/media/top/airing', { params: { type, page } }).then(r => r.data)
+export const getTopAiring = (type: 'ANIME' | 'MANGA', page = 1, limit = 12) =>
+    api.get<JikanResponse<MediaResult>>('/media/top/airing', { params: { type, page, limit } }).then(r => r.data)
 
-export const getTopPopular = (type: 'ANIME' | 'MANGA', page = 1) =>
-    api.get('/media/top/popular', { params: { type, page } }).then(r => r.data)
+export const getTopPopular = (type: 'ANIME' | 'MANGA', page = 1, limit = 12) =>
+    api.get<JikanResponse<MediaResult>>('/media/top/popular', { params: { type, page, limit } }).then(r => r.data)
 
 export const getRecommendations = (type: 'ANIME' | 'MANGA', id: number) =>
     api.get(`/media/${type}/${id}/recommendations`).then(r => r.data)
 
-export const getMyRecommendations = () =>
-    api.get('/media/recommendations/me').then(r => r.data)
+export const getMyRecommendations = (type: 'ANIME' | 'MANGA') =>
+    api.get('/media/recommendations/me', { params: { type } }).then(r => r.data)
 
 // ── profile ───────────────────────────────────────────────────────────────
 export const getProfile = () =>

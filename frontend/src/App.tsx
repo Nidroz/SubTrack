@@ -13,6 +13,7 @@ import Discover from './pages/Discover'
 import MediaDetail from './pages/MediaDetail'
 import Profile from './pages/Profile'
 import Admin from './pages/Admin'
+import NotFound from './pages/NotFound'
 
 export default function App() {
     return (
@@ -35,7 +36,8 @@ export default function App() {
                 <Route path="/admin/*" element={<Admin />} />
             </Route>
 
-            <Route path="*" element={<Navigate to="/" replace />} />
+            {/* 404 — replaces the old Navigate to "/" wildcard */}
+            <Route path="*" element={<NotFound />} />
         </Routes>
     )
 }

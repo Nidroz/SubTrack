@@ -27,7 +27,8 @@ public class ProfileService {
 
   public UserProfileResponse getProfile(Long userId) {
     User user = userRepository.findById(userId).orElseThrow();
-    return new UserProfileResponse(user.getId(), user.getUsername(), user.getEmail(), user.getCreatedAt(), user.getAvatarUrl());
+    return new UserProfileResponse(user.getId(), user.getUsername(), user.getEmail(),
+            user.getCreatedAt(), user.getAvatarUrl(), user.isAllowExplicit());
   }
 
   public ProfileStatsResponse getStats(Long userId) {
@@ -98,6 +99,9 @@ public class ProfileService {
     if (profileUpdateRequest.getAvatarBase64() != null && !profileUpdateRequest.getAvatarBase64().isBlank()) {
       // store as data URL directly — no external service needed
       user.setAvatarUrl(profileUpdateRequest.getAvatarBase64());
+    }
+    if (profileUpdateRequest.getAllowExplicit() != null) {
+      user.setAllowExplicit(profileUpdateRequest.getAllowExplicit());
     }
     userRepository.save(user);
   }

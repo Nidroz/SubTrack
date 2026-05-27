@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { searchMedia } from '../services/api'
+import { searchMedia, ContentFilter } from '../services/api'
 import { useListStore } from '../store/listStore'
 import { getRandom } from '../services/api'
 import { MediaResult, MediaType } from '../types'
+import { useContentFilter } from '../hooks/useContentFilter'
+import FilterSelector from '../components/ui/FilterSelector'
+import NsfwWarningModal from '../components/ui/NsfwWarningModal'
 
 const LIMITS = [12, 24] as const
 type Limit = typeof LIMITS[number]
@@ -22,7 +25,12 @@ export default function Search() {
     const [hasNextPage, setHasNextPage] = useState(false)
     const [lastQuery, setLastQuery] = useState({ q: '', type: 'ANIME' as MediaType })
     const [lastPage, setLastPage] = useState(1)
+    const [jumpPage, setJumpPage] = useState('')
 
+    const [showNsfwWarning, setShowNsfwWarning] = useState(false)
+    const [pendingFilter, setPendingFilter] = useState<ContentFilter | null>(null)
+
+    const { filter, setFilter, filters } = useContentFilter()
     const { entries, addEntry, removeEntry, fetchList } = useListStore()
 
     useEffect(() => { fetchList() }, [])
@@ -33,18 +41,18 @@ export default function Search() {
         if (q) {
             setQuery(q)
             setType(t ?? 'ANIME')
-            runSearch(q, t ?? 'ANIME', 1, limit)
+            runSearch(q, t ?? 'ANIME', 1, limit, filter)
         }
     }, [])
 
     const trackedIds = new Set(entries.map(e => e.mediaId))
     const getEntryId = (malId: number) => entries.find(e => e.mediaId === malId)?.id
 
-    const runSearch = async (q: string, t: MediaType, p: number, l: Limit) => {
+    const runSearch = async (q: string, t: MediaType, p: number, l: Limit, f: ContentFilter) => {
         if (!q.trim()) return
         setLoading(true)
         try {
-            const data = await searchMedia(t, q, p, l) as any
+            const data = await searchMedia(t, q, p, l, f) as any
             setResults(data.data ?? [])
             setHasNextPage(data.pagination?.has_next_page ?? false)
             setLastPage(data.pagination?.last_visible_page ?? p)
@@ -61,20 +69,32 @@ export default function Search() {
     const search = () => {
         setPage(1)
         setSearchParams({ q: query, type })
-        runSearch(query, type, 1, limit)
+        runSearch(query, type, 1, limit, filter)
     }
 
     const handlePageChange = (newPage: number) => {
         setPage(newPage)
-        runSearch(lastQuery.q, lastQuery.type, newPage, limit)
+        runSearch(lastQuery.q, lastQuery.type, newPage, limit, filter)
         window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
     const handleLimitChange = (newLimit: Limit) => {
         setLimit(newLimit)
         setPage(1)
-        if (lastQuery.q) runSearch(lastQuery.q, lastQuery.type, 1, newLimit)
+        if (lastQuery.q) runSearch(lastQuery.q, lastQuery.type, 1, newLimit, filter)
     }
+
+    const handleFilterChange = (f: ContentFilter) => {
+        if (f === 'NSFW' && localStorage.getItem('nsfw-warning-dismissed') !== 'true') {
+            setPendingFilter(f)
+            setShowNsfwWarning(true)
+            return
+        }
+        setFilter(f)
+        setPage(1)
+        if (lastQuery.q) runSearch(lastQuery.q, lastQuery.type, 1, limit, f)
+    }
+
 
     const handleTypeChange = (t: MediaType) => {
         setType(t)
@@ -86,9 +106,7 @@ export default function Search() {
         try {
             const data = await getRandom(type)
             if (data?.data?.mal_id) navigate(`/${type.toLowerCase()}/${data.data.mal_id}`)
-        } finally {
-            setRandomLoading(false)
-        }
+        } finally { setRandomLoading(false) }
     }
 
     const handleAdd = async (item: MediaResult) => {
@@ -138,23 +156,27 @@ export default function Search() {
                 </button>
             </div>
 
-            {/* results header with limit selector */}
-            {results.length > 0 && (
-                <div className="flex items-center justify-between">
-                    <p className="text-xs text-zinc-500">{results.length} results · page {page}</p>
-                    <div className="flex items-center gap-2 text-xs text-zinc-500">
-                        <span>Show</span>
-                        {LIMITS.map(l => (
-                            <button key={l} onClick={() => handleLimitChange(l)}
-                                    className={`px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors ${
-                                        limit === l ? 'border-rose-500 text-rose-400 bg-rose-500/10' : 'border-white/5 text-zinc-500 hover:border-white/10'
-                                    }`}>
-                                {l}
-                            </button>
-                        ))}
+            {/* controls row: filter + limit */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+                <FilterSelector filter={filter} filters={filters} onChange={handleFilterChange} />
+
+                {results.length > 0 && (
+                    <div className="flex items-center gap-3">
+                        <p className="text-xs text-zinc-500">{results.length} results · page {page}</p>
+                        <div className="flex items-center gap-2 text-xs text-zinc-500">
+                            <span>Show</span>
+                            {LIMITS.map(l => (
+                                <button key={l} onClick={() => handleLimitChange(l)}
+                                        className={`px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors ${
+                                            limit === l ? 'border-rose-500 text-rose-400 bg-rose-500/10' : 'border-white/5 text-zinc-500 hover:border-white/10'
+                                        }`}>
+                                    {l}
+                                </button>
+                            ))}
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
 
             <div className="grid grid-cols-[repeat(auto-fill,minmax(175px,1fr))] gap-5">
                 {results.map(item => {
@@ -199,22 +221,14 @@ export default function Search() {
             </div>
 
             {/* pagination */}
-            {results.length > 0 && lastPage > 1 && (
-                <div className="flex items-center justify-center gap-2">
-                    {/* first */}
-                    <button onClick={() => setPage(1)} disabled={page === 1}
-                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">
-                        «
-                    </button>
+            {results.length > 0 && (page > 1 || hasNextPage) && (
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                    <button onClick={() => handlePageChange(1)} disabled={page === 1}
+                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">«</button>
+                    <button onClick={() => handlePageChange(page - 1)} disabled={page === 1}
+                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">‹</button>
 
-                    {/* previous */}
-                    <button onClick={() => setPage(p => p - 1)} disabled={page === 1}
-                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">
-                        ‹
-                    </button>
-
-                    {/* page numbers with ellipsis */}
-                    {Array.from({ length: lastPage }, (_, i) => i + 1)
+                    {lastPage > 1 && Array.from({ length: lastPage }, (_, i) => i + 1)
                         .filter(i => i === 1 || i === lastPage || Math.abs(i - page) <= 2)
                         .reduce<(number | '...')[]>((acc, i, idx, arr) => {
                             if (idx > 0 && (i as number) - (arr[idx - 1] as number) > 1) acc.push('...')
@@ -225,7 +239,7 @@ export default function Search() {
                             item === '...' ? (
                                 <span key={`e-${idx}`} className="text-zinc-600 text-sm px-1">…</span>
                             ) : (
-                                <button key={item} onClick={() => setPage(item as number)}
+                                <button key={item as number} onClick={() => handlePageChange(item as number)}
                                         className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                                             item === page ? 'bg-rose-500 text-white' : 'bg-zinc-900 border border-white/5 text-zinc-400 hover:text-zinc-200'
                                         }`}>
@@ -235,18 +249,55 @@ export default function Search() {
                         )
                     }
 
-                    {/* next */}
-                    <button onClick={() => setPage(p => p + 1)} disabled={!hasNextPage}
-                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">
-                        ›
-                    </button>
+                    {!lastPage || lastPage <= 1 && (
+                        <span className="text-sm text-zinc-500">Page {page}</span>
+                    )}
 
-                    {/* last */}
-                    <button onClick={() => setPage(lastPage)} disabled={page === lastPage}
-                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">
-                        »
-                    </button>
+                    <button onClick={() => handlePageChange(page + 1)} disabled={!hasNextPage}
+                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">›</button>
+                    {lastPage > 1 && (
+                        <button onClick={() => handlePageChange(lastPage)} disabled={page === lastPage}
+                                className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">»</button>
+                    )}
+
+                    {/* jump to page — only if we know total pages */}
+                    {lastPage > 1 && (
+                        <div className="flex items-center gap-2 text-xs text-zinc-500 ml-2">
+                            <span>Go to</span>
+                            <input
+                                type="number" min={1} max={lastPage}
+                                value={jumpPage}
+                                onChange={e => setJumpPage(e.target.value)}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter') {
+                                        const p = parseInt(jumpPage)
+                                        if (!isNaN(p) && p >= 1 && p <= lastPage) {
+                                            handlePageChange(p)
+                                            setJumpPage('')
+                                        }
+                                    }
+                                }}
+                                placeholder={String(page)}
+                                className="w-14 bg-zinc-900 border border-white/5 rounded-lg px-2 py-1.5 text-zinc-300 outline-none focus:border-white/20 text-center"
+                            />
+                            <span>/ {lastPage}</span>
+                        </div>
+                    )}
                 </div>
+            )}
+            {showNsfwWarning && (
+                <NsfwWarningModal
+                    onConfirm={() => {
+                        setShowNsfwWarning(false)
+                        setFilter(pendingFilter!)
+                        setPage(1)
+                        if (lastQuery.q) runSearch(lastQuery.q, lastQuery.type, 1, limit, pendingFilter!)
+                    }}
+                    onCancel={() => {
+                        setShowNsfwWarning(false)
+                        setPendingFilter(null)
+                    }}
+                />
             )}
         </div>
     )

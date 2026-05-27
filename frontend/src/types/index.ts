@@ -56,6 +56,7 @@ export interface Profile {
     email: string
     createdAt: string
     avatarUrl?: string
+    allowExplicit?: boolean
 }
 
 export interface JikanPagination {

@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { getRandom, getTopAiring, getTopPopular, getMyRecommendations } from '../services/api'
+import { getRandom, getTopAiring, getTopPopular, getMyRecommendations, ContentFilter } from '../services/api'
 import { useListStore } from '../store/listStore'
 import { MediaType, MediaResult } from '../types'
+import { useContentFilter } from '../hooks/useContentFilter'
+import FilterSelector from '../components/ui/FilterSelector'
+import NsfwWarningModal from '../components/ui/NsfwWarningModal'
 
 type Section = 'airing' | 'popular' | 'recommended'
 const LIMITS = [12, 24] as const
 type Limit = typeof LIMITS[number]
 
-// extract item type from MAL url (e.g. https://myanimelist.net/anime/123 → 'anime')
 const getItemType = (item: any): 'anime' | 'manga' => {
     const url: string = item.url ?? ''
     return url.includes('/manga/') ? 'manga' : 'anime'
@@ -24,7 +26,12 @@ export default function Discover() {
     const [limit, setLimit] = useState<Limit>(12)
     const [hasNextPage, setHasNextPage] = useState(false)
     const [lastPage, setLastPage] = useState(1)
+    const [jumpPage, setJumpPage] = useState('')
 
+    const [showNsfwWarning, setShowNsfwWarning] = useState(false)
+    const [pendingFilter, setPendingFilter] = useState<ContentFilter | null>(null)
+
+    const { filter, setFilter, filters } = useContentFilter()
     const { entries, addEntry, fetchList } = useListStore()
     const navigate = useNavigate()
     const trackedIds = new Set(entries.map(e => e.mediaId))
@@ -38,17 +45,14 @@ export default function Discover() {
             setResults([])
             try {
                 let data
-                if (section === 'airing') data = await getTopAiring(type, page, limit)
-                else if (section === 'popular') data = await getTopPopular(type, page, limit)
+                if (section === 'airing') data = await getTopAiring(type, page, limit, filter)
+                else if (section === 'popular') data = await getTopPopular(type, page, limit, filter)
                 else data = await getMyRecommendations(type)
 
                 if (cancelled || !data) return
 
                 if (section === 'recommended') {
-                    const items = (data.data ?? [])
-                        .map((r: any) => r.entry)
-                        .filter(Boolean)
-                    setResults(items)
+                    const items = (data.data ?? []).map((r: any) => r.entry).filter(Boolean)
                     setResults(items)
                     setHasNextPage(false)
                 } else {
@@ -68,11 +72,21 @@ export default function Discover() {
         }
         load()
         return () => { cancelled = true }
-    }, [section, type, page, limit])
+    }, [section, type, page, limit, filter])
 
     const handleSectionChange = (s: Section) => { setSection(s); setPage(1) }
     const handleTypeChange = (t: MediaType) => { setType(t); setPage(1) }
     const handleLimitChange = (l: Limit) => { setLimit(l); setPage(1) }
+    const handleFilterChange = (f: ContentFilter) => {
+        if (f === 'NSFW' && localStorage.getItem('nsfw-warning-dismissed') !== 'true') {
+            setPendingFilter(f)
+            setShowNsfwWarning(true)
+            return
+        }
+        setFilter(f)
+        setPage(1)
+    }
+
 
     const handleRandom = async () => {
         setRandomLoading(true)
@@ -83,7 +97,6 @@ export default function Discover() {
     }
 
     const handleAdd = async (item: any) => {
-        // use actual item type for recommended section
         const itemType = section === 'recommended' ? getItemType(item).toUpperCase() as MediaType : type
         await addEntry({ mediaId: item.mal_id, mediaType: itemType, status: 'PLAN_TO_WATCH', progress: 0 })
         await fetchList()
@@ -137,19 +150,26 @@ export default function Discover() {
                     </div>
                 </div>
 
-                {section !== 'recommended' && (
-                    <div className="flex items-center gap-2 text-xs text-zinc-500">
-                        <span>Show</span>
-                        {LIMITS.map(l => (
-                            <button key={l} onClick={() => handleLimitChange(l)}
-                                    className={`px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors ${
-                                        limit === l ? 'border-rose-500 text-rose-400 bg-rose-500/10' : 'border-white/5 text-zinc-500 hover:border-white/10'
-                                    }`}>
-                                {l}
-                            </button>
-                        ))}
-                    </div>
-                )}
+                <div className="flex items-center gap-3">
+                    {/* content filter — hidden for recommendations */}
+                    {section !== 'recommended' && (
+                        <FilterSelector filter={filter} filters={filters} onChange={handleFilterChange} />
+                    )}
+
+                    {section !== 'recommended' && (
+                        <div className="flex items-center gap-2 text-xs text-zinc-500">
+                            <span>Show</span>
+                            {LIMITS.map(l => (
+                                <button key={l} onClick={() => handleLimitChange(l)}
+                                        className={`px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors ${
+                                            limit === l ? 'border-rose-500 text-rose-400 bg-rose-500/10' : 'border-white/5 text-zinc-500 hover:border-white/10'
+                                        }`}>
+                                    {l}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {loading ? (
@@ -203,11 +223,13 @@ export default function Discover() {
             {section !== 'recommended' && results.length > 0 && lastPage > 1 && (
                 <div className="flex items-center justify-center gap-2">
                     <button onClick={() => setPage(1)} disabled={page === 1}
-                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">«</button>
+                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">«
+                    </button>
                     <button onClick={() => setPage(p => p - 1)} disabled={page === 1}
-                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">‹</button>
+                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">‹
+                    </button>
 
-                    {Array.from({ length: lastPage }, (_, i) => i + 1)
+                    {Array.from({length: lastPage}, (_, i) => i + 1)
                         .filter(i => i === 1 || i === lastPage || Math.abs(i - page) <= 2)
                         .reduce<(number | '...')[]>((acc, i, idx, arr) => {
                             if (idx > 0 && (i as number) - (arr[idx - 1] as number) > 1) acc.push('...')
@@ -218,7 +240,7 @@ export default function Discover() {
                             item === '...' ? (
                                 <span key={`e-${idx}`} className="text-zinc-600 text-sm px-1">…</span>
                             ) : (
-                                <button key={item} onClick={() => setPage(item as number)}
+                                <button key={item as number} onClick={() => setPage(item as number)}
                                         className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${
                                             item === page ? 'bg-rose-500 text-white' : 'bg-zinc-900 border border-white/5 text-zinc-400 hover:text-zinc-200'
                                         }`}>
@@ -229,10 +251,47 @@ export default function Discover() {
                     }
 
                     <button onClick={() => setPage(p => p + 1)} disabled={!hasNextPage}
-                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">›</button>
+                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">›
+                    </button>
                     <button onClick={() => setPage(lastPage)} disabled={page === lastPage}
-                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">»</button>
+                            className="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/5 text-sm text-zinc-400 hover:text-zinc-200 disabled:opacity-30 transition-colors">»
+                    </button>
+
+                    <div className="flex items-center gap-2 text-xs text-zinc-500 ml-2">
+                        <span>Go to</span>
+                        <input
+                            type="number" min={1} max={lastPage}
+                            value={jumpPage}
+                            onChange={e => setJumpPage(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    const p = parseInt(jumpPage)
+                                    if (!isNaN(p) && p >= 1 && p <= lastPage) {
+                                        setPage(p)
+                                        setJumpPage('')
+                                        window.scrollTo({top: 0, behavior: 'smooth'})
+                                    }
+                                }
+                            }}
+                            placeholder={String(page)}
+                            className="w-14 bg-zinc-900 border border-white/5 rounded-lg px-2 py-1.5 text-zinc-300 outline-none focus:border-white/20 text-center"
+                        />
+                        <span>/ {lastPage}</span>
+                    </div>
                 </div>
+            )}
+            {showNsfwWarning && (
+                <NsfwWarningModal
+                    onConfirm={() => {
+                        setShowNsfwWarning(false)
+                        setFilter(pendingFilter!)
+                        setPage(1)
+                    }}
+                    onCancel={() => {
+                        setShowNsfwWarning(false)
+                        setPendingFilter(null)
+                    }}
+                />
             )}
         </div>
     )

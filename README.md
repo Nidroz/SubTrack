@@ -7,18 +7,21 @@ Anime & manga tracker full-stack. Recherche, suis ta progression, découvre de n
 **Backend** — Spring Boot 3 · Spring Security · JPA/Hibernate · H2 (dev) / PostgreSQL (prod)  
 **Frontend** — React 18 · TypeScript · Vite · Tailwind CSS · Zustand  
 **API externe** — Jikan v4 (MyAnimeList, pas de clé nécessaire)  
-**Email** — JavaMailSender + Mailtrap (dev)
+**Email** — JavaMailSender + Mailtrap (dev)  
+**Cache** — Caffeine (in-memory, TTL 10 min)
 
 ## Fonctionnalités
 
 - **Auth** — inscription/connexion, JWT access token (15 min) + refresh token (30 jours), blacklist à la déconnexion, rate limiting (10 req/min sur login/register)
-- **Sécurité** — reset password par email, changement d'email avec confirmation, tokens UUID à usage unique (1h)
-- **Liste** — ajouter/retirer des anime & manga, suivre sa progression (épisodes/chapitres), changer de statut (Watching, Completed, Plan to watch, Dropped, On hold), pagination côté serveur
-- **Discover** — Top Airing, Most Popular, For You (basé sur ta liste), Surprise me (anime/manga aléatoire)
-- **Search** — recherche avec persistance dans l'URL (retour arrière conserve la recherche)
-- **Profil** — stats (anime/manga trackés, score moyen, temps regardé estimé), distribution des scores, changement de pseudo et photo de profil, changement de mot de passe et d'email
+- **Sécurité** — reset password par email, changement d'email avec confirmation, tokens UUID à usage unique (1h), rôles USER/ADMIN, compte admin créé automatiquement au démarrage
+- **Liste** — ajouter/retirer des anime & manga, suivre sa progression (épisodes/chapitres), changer de statut (Watching, Completed, Plan to watch, Dropped, On hold), pagination côté serveur avec choix du nombre d'items (15/30/50), tri et filtres
+- **Search** — recherche avec persistance dans l'URL, pagination avec numéros de page et jump-to-page, choix 12/24 résultats par page, filtre de contenu Safe/All/Not Safe, bouton Surprise me
+- **Discover** — Top Airing, Most Popular, For You (recommandations basées sur ta liste), Surprise me, pagination avec jump-to-page, choix 12/24 résultats par page, filtre de contenu Safe/All/Not Safe
+- **Filtre de contenu** — Safe (sfw Jikan), All (pas de filtre), Not Safe (rating=rx pour search, genre-based pour discover) — Not Safe visible uniquement si activé dans le profil, avec avertissement 18+ à la première utilisation
+- **Profil** — stats (anime/manga trackés, score moyen, temps regardé estimé, distribution des scores), changement de pseudo et photo de profil avec recadrage interactif, changement de mot de passe et d'email, toggle contenu explicite
 - **Admin** — gestion des utilisateurs (promouvoir/rétrograder/supprimer), stats globales, gestion du cache média
-- **Cache** — les métadonnées Jikan sont mises en cache en base pour réduire les appels API
+- **Cache** — résultats Jikan mis en cache en mémoire (Caffeine, TTL 10 min), clé incluant le filtre de contenu pour éviter les collisions
+- **UX** — pages 404, loader de démarrage, Error Boundary React, refresh silencieux du token expiré dans AuthGuard
 
 ## Démarrage rapide
 
@@ -81,20 +84,23 @@ app.admin.password=admin1234
 subtrack/
 ├── backend/
 │   └── src/main/java/com/subtrack/
-│       ├── config/          # AppConfig, DataInitializer
+│       ├── config/          # AppConfig, CacheConfig, DataInitializer
 │       ├── controller/      # AuthController, MediaController, ListController,
 │       │                    # ProfileController, AdminController
 │       ├── dto/             # Request/Response DTOs
-│       ├── entity/          # User, UserMedia, MediaCache, tokens...
-│       ├── media/           # Strategy pattern providers (Jikan anime/manga)
+│       ├── entity/          # User, UserMedia, MediaCache, ContentFilter, tokens...
+│       ├── media/           # Strategy pattern providers (Jikan anime/manga), ProviderUtils
 │       ├── repository/      # Spring Data JPA repositories
 │       ├── security/        # JwtUtil, JwtFilter, RateLimitFilter, SecurityConfig
-│       └── service/         # AuthService, MediaService, ProfileService...
+│       └── service/         # AuthService, MediaService, ProfileService, EmailService...
 └── frontend/
     └── src/
-        ├── components/      # AuthGuard, Layout, PasswordInput
+        ├── components/      # AuthGuard, Layout, PasswordInput, AvatarCropper,
+        │                    # FilterSelector, NsfwWarningModal, ErrorBoundary
+        ├── hooks/           # useContentFilter
         ├── pages/           # Dashboard, Search, Discover, MyList, MediaDetail,
-        │                    # Profile, Admin, Login, Register, ForgotPassword...
+        │                    # Profile, Admin, Login, Register, ForgotPassword,
+        │                    # NotFound, PageLoader...
         ├── services/        # api.ts (axios)
         ├── store/           # authStore, listStore (Zustand)
         └── types/           # index.ts
@@ -110,18 +116,18 @@ subtrack/
 | POST | `/api/auth/logout` | ✓ | Déconnexion + révocation |
 | POST | `/api/auth/forgot-password` | — | Demande reset password |
 | POST | `/api/auth/reset-password` | — | Reset password via token |
-| GET | `/api/media/search` | ✓ | Recherche anime/manga |
+| GET | `/api/media/search?type&query&page&limit&filter` | ✓ | Recherche anime/manga |
 | GET | `/api/media/{type}/{id}` | ✓ | Détail d'un média |
-| GET | `/api/media/random` | ✓ | Média aléatoire |
-| GET | `/api/media/top/airing` | ✓ | Top en cours |
-| GET | `/api/media/top/popular` | ✓ | Top populaires |
-| GET | `/api/media/recommendations/me` | ✓ | Recommendations personnalisées |
+| GET | `/api/media/random?type` | ✓ | Média aléatoire |
+| GET | `/api/media/top/airing?type&page&limit&filter` | ✓ | Top en cours |
+| GET | `/api/media/top/popular?type&page&limit&filter` | ✓ | Top populaires |
+| GET | `/api/media/recommendations/me?type` | ✓ | Recommandations personnalisées |
 | GET | `/api/lists` | ✓ | Liste de l'utilisateur (paginée) |
 | POST | `/api/lists` | ✓ | Ajouter à la liste |
 | PATCH | `/api/lists/{id}` | ✓ | Modifier une entrée |
 | DELETE | `/api/lists/{id}` | ✓ | Supprimer une entrée |
 | GET | `/api/profile` | ✓ | Profil utilisateur |
-| PATCH | `/api/profile` | ✓ | Modifier pseudo/avatar |
+| PATCH | `/api/profile` | ✓ | Modifier pseudo/avatar/allowExplicit |
 | PATCH | `/api/profile/password` | ✓ | Changer de mot de passe |
 | POST | `/api/profile/email/change` | ✓ | Demande changement email |
 | POST | `/api/profile/email/confirm` | — | Confirme changement email |

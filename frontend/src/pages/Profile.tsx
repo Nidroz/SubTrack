@@ -46,7 +46,7 @@ export default function Profile() {
     const [editLoading, setEditLoading] = useState(false)
     const [editMsg, setEditMsg] = useState<{ text: string; ok: boolean } | null>(null)
 
-    // avatar flow: idle → rawSrc (choose) → cropSrc (cropper) or pendingAvatar (direct)
+    // avatar flow
     const avatarInputRef = useRef<HTMLInputElement>(null)
     const [rawSrc, setRawSrc] = useState<string | null>(null)
     const [cropSrc, setCropSrc] = useState<string | null>(null)
@@ -64,11 +64,15 @@ export default function Profile() {
     const [emailMsg, setEmailMsg] = useState<{ text: string; ok: boolean } | null>(null)
     const [emailLoading, setEmailLoading] = useState(false)
 
+    // explicit content
+    const [allowExplicit, setAllowExplicit] = useState(false)
+
     const load = async () => {
         const [p, s] = await Promise.all([getProfile(), getProfileStats()]) as [Profile, ProfileStats]
         setProfile(p)
         setStats(s)
         setEditUsername(p.username)
+        setAllowExplicit(p.allowExplicit ?? false)
         setLoading(false)
     }
 
@@ -135,6 +139,16 @@ export default function Profile() {
         } finally { setEmailLoading(false) }
     }
 
+    const handleExplicitToggle = async (val: boolean) => {
+        setAllowExplicit(val)
+        try {
+            await updateProfile({ allowExplicit: val })
+        } catch {
+            // revert on error
+            setAllowExplicit(!val)
+        }
+    }
+
     if (loading) return <p className="text-zinc-500 text-sm">Loading...</p>
 
     const avatarSrc = pendingAvatar !== null ? pendingAvatar : profile?.avatarUrl
@@ -157,8 +171,6 @@ export default function Profile() {
             <section className="flex flex-col gap-4">
                 <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Account</h2>
                 <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex flex-col gap-4">
-
-                    {/* read-only view */}
                     <div className="flex items-center gap-4">
                         <div className="relative w-14 h-14 shrink-0">
                             {avatarSrc ? (
@@ -190,33 +202,24 @@ export default function Profile() {
                         </button>
                     </div>
 
-                    {/* edit section */}
                     {editing && (
                         <div className="flex flex-col gap-4 pt-2 border-t border-white/5">
-
-                            {/* avatar flow */}
                             {cropSrc ? (
-                                // step 3 — cropper
                                 <AvatarCropper
                                     src={cropSrc}
                                     onConfirm={cropped => { setPendingAvatar(cropped); setCropSrc(null) }}
                                     onCancel={() => setCropSrc(null)}
                                 />
                             ) : rawSrc ? (
-                                // step 2 — choose: use as is or crop
                                 <div className="flex flex-col gap-3">
                                     <p className="text-xs text-zinc-500">Use this image directly or crop it first?</p>
                                     <div className="flex gap-2">
-                                        <button
-                                            onClick={() => { setPendingAvatar(rawSrc); setRawSrc(null) }}
-                                            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold py-2 rounded-lg transition-colors"
-                                        >
-                                            Use as is (default)
+                                        <button onClick={() => { setPendingAvatar(rawSrc); setRawSrc(null) }}
+                                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold py-2 rounded-lg transition-colors">
+                                            Use as is
                                         </button>
-                                        <button
-                                            onClick={() => { setCropSrc(rawSrc); setRawSrc(null) }}
-                                            className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-sm font-semibold py-2 rounded-lg transition-colors"
-                                        >
+                                        <button onClick={() => { setCropSrc(rawSrc); setRawSrc(null) }}
+                                                className="flex-1 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-sm font-semibold py-2 rounded-lg transition-colors">
                                             Crop & zoom
                                         </button>
                                     </div>
@@ -225,13 +228,10 @@ export default function Profile() {
                                     </button>
                                 </div>
                             ) : (
-                                // step 1 — upload button
                                 <div className="flex items-center gap-3">
                                     <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
-                                    <button
-                                        onClick={() => avatarInputRef.current?.click()}
-                                        className="text-xs bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-400 hover:text-zinc-200 px-3 py-2 rounded-lg transition-colors"
-                                    >
+                                    <button onClick={() => avatarInputRef.current?.click()}
+                                            className="text-xs bg-white/5 hover:bg-white/10 border border-white/5 text-zinc-400 hover:text-zinc-200 px-3 py-2 rounded-lg transition-colors">
                                         {avatarSrc ? 'Change photo' : 'Upload photo'}
                                     </button>
                                     {avatarSrc && (
@@ -243,7 +243,6 @@ export default function Profile() {
                                 </div>
                             )}
 
-                            {/* username + save — hidden during crop */}
                             {!cropSrc && !rawSrc && (
                                 <>
                                     <div className="flex flex-col gap-1.5">
@@ -256,17 +255,14 @@ export default function Profile() {
                                     </div>
                                     {editMsg && <p className={`text-xs ${editMsg.ok ? 'text-emerald-400' : 'text-red-400'}`}>{editMsg.text}</p>}
                                     <div className="flex gap-2">
-                                        <button
-                                            onClick={() => { setEditing(false); setEditMsg(null); setPendingAvatar(null) }}
-                                            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold py-2 rounded-lg transition-colors"
-                                        >
+                                        <button onClick={() => { setEditing(false); setEditMsg(null); setPendingAvatar(null) }}
+                                                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold py-2 rounded-lg transition-colors">
                                             Cancel
                                         </button>
                                         <button
                                             onClick={handleProfileSave}
                                             disabled={editLoading || (editUsername === profile?.username && !pendingAvatar)}
-                                            className="flex-1 bg-rose-500 hover:bg-rose-400 disabled:opacity-40 text-white text-sm font-semibold py-2 rounded-lg transition-colors"
-                                        >
+                                            className="flex-1 bg-rose-500 hover:bg-rose-400 disabled:opacity-40 text-white text-sm font-semibold py-2 rounded-lg transition-colors">
                                             {editLoading ? 'Saving...' : 'Save changes'}
                                         </button>
                                     </div>
@@ -355,11 +351,8 @@ export default function Profile() {
                             />
                         </div>
                         {emailMsg && <p className={`text-xs ${emailMsg.ok ? 'text-emerald-400' : 'text-red-400'}`}>{emailMsg.text}</p>}
-                        <button
-                            onClick={handleEmailChange}
-                            disabled={emailLoading || !newEmail}
-                            className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-200 text-sm font-semibold py-2 rounded-lg transition-colors"
-                        >
+                        <button onClick={handleEmailChange} disabled={emailLoading || !newEmail}
+                                className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-200 text-sm font-semibold py-2 rounded-lg transition-colors">
                             {emailLoading ? 'Sending...' : 'Send confirmation'}
                         </button>
                     </div>
@@ -383,14 +376,34 @@ export default function Profile() {
                             </div>
                         ))}
                         {pwdMsg && <p className={`text-xs ${pwdMsg.ok ? 'text-emerald-400' : 'text-red-400'}`}>{pwdMsg.text}</p>}
-                        <button
-                            onClick={handlePasswordChange}
-                            disabled={pwdLoading || !currentPwd || !newPwd || !confirmPwd}
-                            className="bg-rose-500 hover:bg-rose-400 disabled:opacity-40 text-white text-sm font-semibold py-2 rounded-lg transition-colors"
-                        >
+                        <button onClick={handlePasswordChange} disabled={pwdLoading || !currentPwd || !newPwd || !confirmPwd}
+                                className="bg-rose-500 hover:bg-rose-400 disabled:opacity-40 text-white text-sm font-semibold py-2 rounded-lg transition-colors">
                             {pwdLoading ? 'Updating...' : 'Update password'}
                         </button>
                     </div>
+                </div>
+            </section>
+
+            {/* content preferences */}
+            <section className="flex flex-col gap-4">
+                <h2 className="text-sm font-semibold text-zinc-400 uppercase tracking-widest">Content</h2>
+                <div className="bg-zinc-900 border border-white/5 rounded-xl p-5 flex items-center justify-between gap-4">
+                    <div>
+                        <p className="text-sm font-medium">Allow explicit content</p>
+                        <p className="text-xs text-zinc-500 mt-0.5">
+                            Unlocks the "Not Safe" filter in Search and Discover.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => handleExplicitToggle(!allowExplicit)}
+                        className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${
+                            allowExplicit ? 'bg-rose-500' : 'bg-zinc-700'
+                        }`}
+                    >
+                        <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                            allowExplicit ? 'translate-x-5' : 'translate-x-0'
+                        }`} />
+                    </button>
                 </div>
             </section>
 
@@ -400,8 +413,7 @@ export default function Profile() {
                 <div className="bg-zinc-900 border border-white/5 rounded-xl p-5">
                     <button
                         onClick={() => useAuthStore.getState().logout()}
-                        className="text-sm text-red-400 hover:text-red-300 font-medium transition-colors"
-                    >
+                        className="text-sm text-red-400 hover:text-red-300 font-medium transition-colors">
                         Sign out of all devices
                     </button>
                 </div>

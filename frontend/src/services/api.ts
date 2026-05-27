@@ -67,8 +67,10 @@ export const changeEmail = (newEmail: string) =>
     api.post('/profile/email/change', { newEmail }).then(r => r.data)
 
 // ── media ─────────────────────────────────────────────────────────────────
-export const searchMedia = (type: 'ANIME' | 'MANGA', query: string, page = 1, limit = 12) =>
-    api.get<JikanResponse<MediaResult>>('/media/search', { params: { type, query, page, limit } }).then(r => r.data)
+export type ContentFilter = 'SAFE' | 'ALL' | 'NSFW'
+
+export const searchMedia = (type: 'ANIME' | 'MANGA', query: string, page = 1, limit = 12, filter: ContentFilter = 'ALL') =>
+    api.get('/media/search', { params: { type, query, page, limit, filter } }).then(r => r.data)
 
 export const getMediaById = (type: 'ANIME' | 'MANGA', id: number) =>
     api.get(`/media/${type}/${id}`).then(r => r.data)
@@ -102,11 +104,11 @@ export const getStats = () =>
 export const getRandom = (type: 'ANIME' | 'MANGA') =>
     api.get('/media/random', { params: { type } }).then(r => r.data)
 
-export const getTopAiring = (type: 'ANIME' | 'MANGA', page = 1, limit = 12) =>
-    api.get<JikanResponse<MediaResult>>('/media/top/airing', { params: { type, page, limit } }).then(r => r.data)
+export const getTopAiring = (type: 'ANIME' | 'MANGA', page = 1, limit = 12, filter: ContentFilter = 'ALL') =>
+    api.get('/media/top/airing', { params: { type, page, limit, filter } }).then(r => r.data)
 
-export const getTopPopular = (type: 'ANIME' | 'MANGA', page = 1, limit = 12) =>
-    api.get<JikanResponse<MediaResult>>('/media/top/popular', { params: { type, page, limit } }).then(r => r.data)
+export const getTopPopular = (type: 'ANIME' | 'MANGA', page = 1, limit = 12, filter: ContentFilter = 'ALL') =>
+    api.get('/media/top/popular', { params: { type, page, limit, filter } }).then(r => r.data)
 
 export const getRecommendations = (type: 'ANIME' | 'MANGA', id: number) =>
     api.get(`/media/${type}/${id}/recommendations`).then(r => r.data)
@@ -124,7 +126,7 @@ export const getProfileStats = () =>
 export const changePassword = (currentPassword: string, newPassword: string) =>
     api.patch('/profile/password', { currentPassword, newPassword }).then(r => r.data)
 
-export const updateProfile = (data: { username?: string; avatarBase64?: string }) =>
+export const updateProfile = (data: { username?: string; avatarBase64?: string; allowExplicit?: boolean }) =>
     api.patch('/profile', data).then(r => r.data)
 
 // ── admin ─────────────────────────────────────────────────────────────────

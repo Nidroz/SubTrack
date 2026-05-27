@@ -34,4 +34,7 @@ public class User {
 
   @Column(columnDefinition = "TEXT")
   private String avatarUrl;  // stored as base64 data URL or external URL
+
+  @Column(nullable = false)
+  private boolean allowExplicit = false;
 }

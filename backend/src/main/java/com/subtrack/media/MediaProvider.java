@@ -1,6 +1,7 @@
 package com.subtrack.media;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.subtrack.entity.ContentFilter;
 import com.subtrack.entity.MediaType;
 
 /**
@@ -9,11 +10,11 @@ import com.subtrack.entity.MediaType;
  */
 public interface MediaProvider {
   MediaType supports(); // media type this provider handles.
-  JsonNode search(String query, int page, int limit);
+  JsonNode search(String query, int page, int limit, ContentFilter filter);
   JsonNode getById(Long id);
   JsonNode getEpisodes(Long id);
   JsonNode getRandom();
-  JsonNode getTopAiring(int page, int limit);
-  JsonNode getTopPopular(int page, int limit);
+  JsonNode getTopAiring(int page, int limit, ContentFilter filter);
+  JsonNode getTopPopular(int page, int limit, ContentFilter filter);
   JsonNode getRecommendations(Long id);
 }

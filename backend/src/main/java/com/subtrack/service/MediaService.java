@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.subtrack.entity.ContentFilter;
 import com.subtrack.entity.MediaCache;
 import com.subtrack.entity.MediaType;
 import com.subtrack.entity.UserMedia;
@@ -30,9 +31,9 @@ public class MediaService {
   private final MediaCacheRepository mediaCacheRepository;
   private final UserMediaRepository userMediaRepository;
 
-  @Cacheable(value = "media-search", key = "#mediaType + ':' + #query + ':' + #page + ':' + #limit")
-  public JsonNode search(MediaType mediaType, String query, int page, int limit) {
-    return registry.getProvider(mediaType).search(query, page, limit);
+  @Cacheable(value = "media-search", key = "#mediaType + ':' + #query + ':' + #page + ':' + #limit + ':' + #filter")
+  public JsonNode search(MediaType mediaType, String query, int page, int limit, ContentFilter filter) {
+    return registry.getProvider(mediaType).search(query, page, limit, filter);
   }
 
   public JsonNode getById(MediaType mediaType, Long id) {
@@ -57,14 +58,14 @@ public class MediaService {
     return registry.getProvider(mediaType).getRandom();
   }
 
-  @Cacheable(value = "media-top-airing", key = "#mediaType + ':' + #page + ':' + #limit")
-  public JsonNode getTopAiring(MediaType mediaType, int page, int limit) {
-    return registry.getProvider(mediaType).getTopAiring(page, limit);
+  @Cacheable(value = "media-top-airing", key = "#mediaType + ':' + #page + ':' + #limit + ':' + #filter")
+  public JsonNode getTopAiring(MediaType mediaType, int page, int limit, ContentFilter filter) {
+    return registry.getProvider(mediaType).getTopAiring(page, limit, filter);
   }
 
-  @Cacheable(value = "media-top-popular", key = "#mediaType + ':' + #page + ':' + #limit")
-  public JsonNode getTopPopular(MediaType mediaType, int page, int limit) {
-    return registry.getProvider(mediaType).getTopPopular(page, limit);
+  @Cacheable(value = "media-top-popular", key = "#mediaType + ':' + #page + ':' + #limit + ':' + #filter")
+  public JsonNode getTopPopular(MediaType mediaType, int page, int limit, ContentFilter filter) {
+    return registry.getProvider(mediaType).getTopPopular(page, limit, filter);
   }
 
   public JsonNode getRecommendations(MediaType mediaType, Long id) {

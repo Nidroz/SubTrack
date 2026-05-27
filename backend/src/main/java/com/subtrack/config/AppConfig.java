@@ -1,5 +1,6 @@
 package com.subtrack.config;
 
+import com.subtrack.entity.ContentFilter;
 import com.subtrack.entity.MediaType;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,5 +26,7 @@ public class AppConfig implements WebMvcConfigurer {
   public void addFormatters(FormatterRegistry registry) {
     registry.addConverter(String.class, MediaType.class,
             source -> MediaType.valueOf(source.toUpperCase()));
+    registry.addConverter(String.class, ContentFilter.class,
+            source -> ContentFilter.valueOf(source.toUpperCase()));
   }
 }

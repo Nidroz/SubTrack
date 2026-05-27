@@ -1,6 +1,7 @@
 package com.subtrack.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.subtrack.entity.ContentFilter;
 import com.subtrack.entity.MediaType;
 import com.subtrack.repository.UserRepository;
 import com.subtrack.service.MediaService;
@@ -21,9 +22,9 @@ public class MediaController {
           @RequestParam MediaType type,
           @RequestParam String query,
           @RequestParam(defaultValue = "1") int page,
-          @RequestParam(defaultValue = "12") int limit
-  ) {
-    return mediaService.search(type, query, page, limit);
+          @RequestParam(defaultValue = "12") int limit,
+          @RequestParam(defaultValue = "ALL") ContentFilter filter) {
+    return mediaService.search(type, query, page, limit, filter);
   }
 
   @GetMapping("/{type}/{id}")
@@ -53,18 +54,18 @@ public class MediaController {
   public JsonNode getTopAiring(
           @RequestParam MediaType type,
           @RequestParam(defaultValue = "1") int page,
-          @RequestParam(defaultValue = "12") int limit
-  ) {
-    return mediaService.getTopAiring(type, page, limit);
+          @RequestParam(defaultValue = "12") int limit,
+          @RequestParam(defaultValue = "ALL") ContentFilter filter) {
+    return mediaService.getTopAiring(type, page, limit, filter);
   }
 
   @GetMapping("/top/popular")
   public JsonNode getTopPopular(
           @RequestParam MediaType type,
           @RequestParam(defaultValue = "1") int page,
-          @RequestParam(defaultValue = "12") int limit
-  ) {
-    return mediaService.getTopPopular(type, page, limit);
+          @RequestParam(defaultValue = "12") int limit,
+          @RequestParam(defaultValue = "ALL") ContentFilter filter) {
+    return mediaService.getTopPopular(type, page, limit, filter);
   }
 
   @GetMapping("/{type}/{id}/recommendations")

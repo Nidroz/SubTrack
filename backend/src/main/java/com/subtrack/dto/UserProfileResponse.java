@@ -13,4 +13,5 @@ public class UserProfileResponse {
   private String email;
   private LocalDateTime createdAt;
   private String avatarUrl;
+  private boolean allowExplicit;
 }

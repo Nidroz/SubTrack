@@ -3,7 +3,7 @@ FROM maven:3.9-eclipse-temurin-21 AS builder
 WORKDIR /app
 COPY pom.xml .
 RUN mvn dependency:go-offline -q
-COPY src ./src
+COPY backend/src ./src
 RUN mvn package -DskipTests -q
 
 # stage 2 — run

@@ -7,8 +7,9 @@ Anime & manga tracker full-stack. Recherche, suis ta progression, découvre de n
 **Backend** — Spring Boot 3 · Spring Security · JPA/Hibernate · H2 (dev) / PostgreSQL (prod)  
 **Frontend** — React 18 · TypeScript · Vite · Tailwind CSS · Zustand  
 **API externe** — Jikan v4 (MyAnimeList, pas de clé nécessaire)  
-**Email** — JavaMailSender + Mailtrap (dev)  
-**Cache** — Caffeine (in-memory, TTL 10 min)
+**Email** — JavaMailSender + Mailtrap (dev) / Brevo (prod)  
+**Cache** — Caffeine (in-memory, TTL 10 min)  
+**Déploiement** — Vercel (frontend) + Render (backend + PostgreSQL)
 
 ## Fonctionnalités
 
@@ -17,7 +18,7 @@ Anime & manga tracker full-stack. Recherche, suis ta progression, découvre de n
 - **Liste** — ajouter/retirer des anime & manga, suivre sa progression (épisodes/chapitres), changer de statut (Watching, Completed, Plan to watch, Dropped, On hold), pagination côté serveur avec choix du nombre d'items (15/30/50), tri et filtres
 - **Search** — recherche avec persistance dans l'URL, pagination avec numéros de page et jump-to-page, choix 12/24 résultats par page, filtre de contenu Safe/All/Not Safe, bouton Surprise me
 - **Discover** — Top Airing, Most Popular, For You (recommandations basées sur ta liste), Surprise me, pagination avec jump-to-page, choix 12/24 résultats par page, filtre de contenu Safe/All/Not Safe
-- **Filtre de contenu** — Safe (sfw Jikan), All (pas de filtre), Not Safe (rating=rx pour search, genre-based pour discover) — Not Safe visible uniquement si activé dans le profil, avec avertissement 18+ à la première utilisation
+- **Filtre de contenu** — Safe (sfw Jikan), All (pas de filtre), Not Safe (rating=rx) — Not Safe visible uniquement si activé dans le profil, avec avertissement 18+ à la première utilisation
 - **Profil** — stats (anime/manga trackés, score moyen, temps regardé estimé, distribution des scores), changement de pseudo et photo de profil avec recadrage interactif, changement de mot de passe et d'email, toggle contenu explicite
 - **Admin** — gestion des utilisateurs (promouvoir/rétrograder/supprimer), stats globales, gestion du cache média
 - **Cache** — résultats Jikan mis en cache en mémoire (Caffeine, TTL 10 min), clé incluant le filtre de contenu pour éviter les collisions
@@ -78,38 +79,74 @@ app.admin.email=admin@subtrack.dev
 app.admin.password=admin1234
 ```
 
+## Déploiement (Vercel + Render)
+
+L'application est pensée pour être déployée gratuitement sur :
+- **Vercel** pour le frontend React
+- **Render** pour le backend Spring Boot + PostgreSQL
+
+### Variables d'environnement Render (backend)
+
+| Variable | Description |
+|----------|-------------|
+| `SPRING_PROFILES_ACTIVE` | `prod` |
+| `DB_URL` | Injecté automatiquement par Render |
+| `DB_USER` | Injecté automatiquement par Render |
+| `DB_PASSWORD` | Injecté automatiquement par Render |
+| `JWT_SECRET` | Généré automatiquement par Render |
+| `MAIL_HOST` | ex. `smtp-relay.brevo.com` |
+| `MAIL_PORT` | ex. `587` |
+| `MAIL_USERNAME` | Login SMTP Brevo |
+| `MAIL_PASSWORD` | Clé SMTP Brevo |
+| `MAIL_FROM` | ex. `noreply@subtrack.dev` |
+| `FRONTEND_URL` | URL Vercel ex. `https://subtrack.vercel.app` |
+
+### Variable d'environnement Vercel (frontend)
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_URL` | URL du backend Render ex. `https://subtrack-backend.onrender.com` |
+
+### Eviter le cold start (Render free tier)
+
+Le backend Render se met en veille après 15 min d'inactivité. Pour l'éviter, configure **UptimeRobot** (gratuit) pour pinger `/api/health` toutes les 5 minutes.
+
 ## Structure du projet
 
 ```
 subtrack/
 ├── backend/
+│   ├── Dockerfile
 │   └── src/main/java/com/subtrack/
 │       ├── config/          # AppConfig, CacheConfig, DataInitializer
 │       ├── controller/      # AuthController, MediaController, ListController,
-│       │                    # ProfileController, AdminController
+│       │                    # ProfileController, AdminController, HealthController
 │       ├── dto/             # Request/Response DTOs
 │       ├── entity/          # User, UserMedia, MediaCache, ContentFilter, tokens...
 │       ├── media/           # Strategy pattern providers (Jikan anime/manga), ProviderUtils
 │       ├── repository/      # Spring Data JPA repositories
 │       ├── security/        # JwtUtil, JwtFilter, RateLimitFilter, SecurityConfig
 │       └── service/         # AuthService, MediaService, ProfileService, EmailService...
-└── frontend/
-    └── src/
-        ├── components/      # AuthGuard, Layout, PasswordInput, AvatarCropper,
-        │                    # FilterSelector, NsfwWarningModal, ErrorBoundary
-        ├── hooks/           # useContentFilter
-        ├── pages/           # Dashboard, Search, Discover, MyList, MediaDetail,
-        │                    # Profile, Admin, Login, Register, ForgotPassword,
-        │                    # NotFound, PageLoader...
-        ├── services/        # api.ts (axios)
-        ├── store/           # authStore, listStore (Zustand)
-        └── types/           # index.ts
+├── frontend/
+│   ├── vercel.json
+│   └── src/
+│       ├── components/      # AuthGuard, Layout, PasswordInput, AvatarCropper,
+│       │                    # FilterSelector, NsfwWarningModal, ErrorBoundary
+│       ├── hooks/           # useContentFilter
+│       ├── pages/           # Dashboard, Search, Discover, MyList, MediaDetail,
+│       │                    # Profile, Admin, Login, Register, ForgotPassword,
+│       │                    # NotFound, PageLoader...
+│       ├── services/        # api.ts (axios)
+│       ├── store/           # authStore, listStore (Zustand)
+│       └── types/           # index.ts
+└── render.yaml
 ```
 
 ## API endpoints
 
 | Méthode | Route | Auth | Description |
 |---------|-------|------|-------------|
+| GET | `/api/health` | — | Health check (UptimeRobot) |
 | POST | `/api/auth/register` | — | Inscription |
 | POST | `/api/auth/login` | — | Connexion |
 | POST | `/api/auth/refresh` | — | Refresh access token |

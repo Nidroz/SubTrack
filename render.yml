@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: subtrack-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: DB_URL
+        fromDatabase:
+          name: subtrack-db
+          property: connectionString
+      - key: DB_USER
+        fromDatabase:
+          name: subtrack-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: subtrack-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true   # Render generates a random value automatically
+      - key: MAIL_HOST
+        sync: false           # fill manually in the Render dashboard
+      - key: MAIL_PORT
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: FRONTEND_URL
+        sync: false           # Vercel URL, e.g. https://subtrack.vercel.app
+
+databases:
+  - name: subtrack-db
+    plan: free
+    databaseName: subtrack

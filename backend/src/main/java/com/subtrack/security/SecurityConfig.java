@@ -1,6 +1,7 @@
 package com.subtrack.security;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,6 +19,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
@@ -27,6 +29,11 @@ public class SecurityConfig {
 
   private final JwtFilter jwtFilter;
   private final com.subtrack.security.RateLimitFilter rateLimitFilter;
+
+  // injected from env var FRONTEND_URL (set in application-prod.properties)
+  // falls back to localhost for dev
+  @Value("${app.frontend.url:http://localhost:5173}")
+  private String frontendUrl;
 
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -38,6 +45,7 @@ public class SecurityConfig {
                     .requestMatchers(
                             "/api/auth/**",
                             "/api/profile/email/confirm",  // token-based, no auth needed
+                            "/api/health",
                             "/h2-console/**"
                     )
                     .permitAll()
@@ -55,13 +63,18 @@ public class SecurityConfig {
             )
             .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
-
     return http.build();
   }
 
   @Bean
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration config = new CorsConfiguration();
+    // always allow localhost for dev + the prod frontend URL from env
+    List<String> origins = new ArrayList<>(List.of("http://localhost:5173"));
+    if (frontendUrl != null && !frontendUrl.isBlank()
+            && !frontendUrl.equals("http://localhost:5173")) {
+      origins.add(frontendUrl);
+    }
     config.setAllowedOrigins(List.of("http://localhost:5173"));
     config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
     config.setAllowedHeaders(List.of("*"));
